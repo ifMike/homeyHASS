@@ -81,6 +81,11 @@ CAPABILITY_TO_SENSOR = {
         "state_class": SensorStateClass.MEASUREMENT,
         "unit": "ppm",
     },
+    "measure_distance": {
+        "device_class": SensorDeviceClass.DISTANCE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": "cm",  # Common for ultrasonic/ToF presence sensors
+    },
     # Additional sensor capabilities
     "measure_noise": {
         "device_class": SensorDeviceClass.SOUND_PRESSURE,

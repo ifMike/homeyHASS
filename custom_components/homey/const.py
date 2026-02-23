@@ -64,6 +64,7 @@ CAPABILITY_TO_PLATFORM = {
     "measure_luminance": "sensor",
     "measure_co2": "sensor",
     "measure_co": "sensor",
+    "measure_distance": "sensor",
     "alarm_motion": "binary_sensor",
     "alarm_contact": "binary_sensor",
     "alarm_tamper": "binary_sensor",

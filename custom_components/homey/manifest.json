@@ -5,13 +5,10 @@
   "config_flow": true,
   "dependencies": [],
   "dhcp": [
-    {
-      "registered_devices": true
-    },
-    {
-      "macaddress": "9013DA*"
-    }
+    {"registered_devices": true},
+    {"macaddress": "9013da*"}
   ],
+  "zeroconf": ["_homey._tcp.local."],
   "documentation": "https://github.com/ifMike/homeyHASS",
   "integration_type": "hub",
   "iot_class": "local_polling",
@@ -19,4 +16,3 @@
   "requirements": ["aiohttp>=3.8.0", "python-socketio>=5.0.0"],
   "version": "1.1.9"
 }
-

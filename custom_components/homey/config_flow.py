@@ -16,6 +16,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv, device_registry as dr, selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import (
     CONF_DEVICE_FILTER,
@@ -70,7 +71,6 @@ async def _async_check_homey_reachable(host: str) -> bool:
     try:
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             async with session.get(f"{host}/api/manager/system/info") as response:
-                # 401 = Homey requires auth (good). 200 = no auth needed (unusual but ok).
                 return response.status in (200, 401)
     except Exception:
         return False
@@ -87,22 +87,57 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         """Handle DHCP discovery."""
         macaddress = dr.format_mac(discovery_info.macaddress)
 
-        _LOGGER.debug(
-            "DHCP discovery detected Homey on %s (%s)",
+        _LOGGER.info(
+            "DHCP discovery: Homey detected at %s (MAC %s)",
             discovery_info.ip,
             macaddress,
         )
 
-        # Check if the device responds as Homey (reachable, returns 200 or 401)
+        # Check if the device responds as Homey (reachable, returns 200 or 401).
+        # If unreachable (e.g. HA in Docker, firewall), still show form - user can try.
         if not await _async_check_homey_reachable(discovery_info.ip):
-            return self.async_abort(reason="cannot_connect")
+            _LOGGER.warning(
+                "DHCP discovery: Could not reach Homey at %s - showing form anyway "
+                "(check network/firewall if setup fails)",
+                discovery_info.ip,
+            )
 
         await self.async_set_unique_id(macaddress)
         self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
 
-        _LOGGER.debug("Homey on %s is not yet configured", discovery_info.ip)
-
         self._discovered_ip = discovery_info.ip
+
+        return await self.async_step_dhcp_confirm()
+
+    async def async_step_zeroconf(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> FlowResult:
+        """Handle Zeroconf (mDNS) discovery.
+
+        Homey broadcasts _homey._tcp via mDNS. This discovery path does not
+        depend on MAC address, so it works even when DHCP discovery fails
+        (e.g. different MAC prefix, Docker networking, or router not reporting).
+        """
+        host = discovery_info.host
+        hostname = discovery_info.hostname or host
+
+        _LOGGER.info(
+            "Zeroconf discovery: Homey detected at %s (hostname: %s)",
+            host,
+            hostname,
+        )
+
+        if not await _async_check_homey_reachable(host):
+            _LOGGER.warning(
+                "Zeroconf discovery: Could not reach Homey at %s - showing form anyway "
+                "(check network/firewall if setup fails)",
+                host,
+            )
+
+        await self.async_set_unique_id(hostname)
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+
+        self._discovered_ip = host
 
         return await self.async_step_dhcp_confirm()
 

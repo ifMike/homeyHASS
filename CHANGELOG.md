@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Zeroconf (mDNS) discovery**: Homey broadcasts `_homey._tcp` via mDNS. Discovery works regardless of MAC address or router DHCP reporting. Helps when DHCP discovery fails (e.g. different MAC prefix, Docker networking).
+- **DHCP discovery**: Automatic discovery via MAC address prefix (9013DA) for supported routers. Based on PR #18 by @rrooggiieerr.
+- **measure_distance capability**: Map `measure_distance` to sensor with DISTANCE device class and cm unit for ultrasonic/ToF presence sensors.
+
+### Changed
+- **Discovery form**: Confirmation form now includes an editable host field so you can see and correct the detected IP (e.g. when Homey has multiple interfaces).
+
+### Fixed
+- **Zeroconf multi-address**: When Homey has multiple interfaces (IPv6, Ethernet, WiFi), pick the first reachable address (IPv4 before IPv6) instead of using an unreachable primary.
+- **Manifest**: MAC address must be uppercase (9013DA) and keys sorted for hassfest validation.
+
 ## [1.1.9] - 2026-02-18
 
 ### Added

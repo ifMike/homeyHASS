@@ -46,11 +46,24 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
-STEP_DHCP_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_TOKEN): str,
-    }
-)
+def _dhcp_confirm_schema(discovered_host: str) -> vol.Schema:
+    """Schema for discovery confirmation with editable host."""
+    return vol.Schema(
+        {
+            vol.Required(CONF_HOST, default=discovered_host): str,
+            vol.Required(CONF_TOKEN): str,
+        }
+    )
+
+
+async def _async_find_reachable_host(addresses: list[str]) -> str | None:
+    """Try addresses (IPv4 first) and return the first reachable one."""
+    ipv4 = [a for a in addresses if ":" not in a]
+    ipv6 = [a for a in addresses if ":" in a]
+    for addr in ipv4 + ipv6:
+        if await _async_check_homey_reachable(addr):
+            return addr
+    return None
 
 
 async def _async_check_homey_reachable(host: str) -> bool:
@@ -117,20 +130,31 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         Homey broadcasts _homey._tcp via mDNS. This discovery path does not
         depend on MAC address, so it works even when DHCP discovery fails
         (e.g. different MAC prefix, Docker networking, or router not reporting).
+
+        When Homey has multiple interfaces (e.g. Ethernet + WiFi), we try each
+        address and prefer the first reachable one (IPv4 before IPv6).
         """
-        host = discovery_info.host
-        hostname = discovery_info.hostname or host
+        hostname = discovery_info.hostname or discovery_info.host
+        addresses = discovery_info.addresses or [discovery_info.host]
 
         _LOGGER.info(
             "Zeroconf discovery: Homey detected at %s (hostname: %s)",
-            host,
+            ", ".join(addresses),
             hostname,
         )
 
-        if not await _async_check_homey_reachable(host):
+        # Try all addresses (IPv4 first) and use first reachable
+        reachable = await _async_find_reachable_host(addresses)
+        if reachable:
+            host = reachable
+            _LOGGER.info("Zeroconf discovery: Using reachable address %s", host)
+        else:
+            # Prefer IPv4 as default when none reachable (e.g. HA in Docker)
+            ipv4 = [a for a in addresses if ":" not in a]
+            host = ipv4[0] if ipv4 else addresses[0]
             _LOGGER.warning(
-                "Zeroconf discovery: Could not reach Homey at %s - showing form anyway "
-                "(check network/firewall if setup fails)",
+                "Zeroconf discovery: Could not reach Homey at any address - "
+                "defaulting to %s (user can correct in form)",
                 host,
             )
 
@@ -144,12 +168,17 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
     async def async_step_dhcp_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle DHCP discovery confirmation."""
+        """Handle DHCP/Zeroconf discovery confirmation.
+
+        Form includes host so user can correct it when auto-detection picks the
+        wrong address (e.g. IPv6 or different subnet).
+        """
         errors: dict[str, str] = {}
+        discovered_host = getattr(self, "_discovered_ip", "192.168.1.100")
 
         if user_input is not None:
             token = user_input[CONF_TOKEN].strip()
-            host = self._discovered_ip
+            host = user_input.get(CONF_HOST, discovered_host).strip()
             if not host.startswith(("http://", "https://")):
                 host = f"http://{host}"
 
@@ -158,7 +187,7 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             )
             if valid:
                 return self.async_create_entry(
-                    title=f"Homey ({self._discovered_ip})",
+                    title=f"Homey ({user_input.get(CONF_HOST, discovered_host)})",
                     data={
                         CONF_HOST: host,
                         CONF_TOKEN: token,
@@ -169,10 +198,12 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 )
             if error_key:
                 errors["base"] = error_key
+                # Preserve user's host when re-showing form after error
+                discovered_host = user_input.get(CONF_HOST, discovered_host).strip()
 
         return self.async_show_form(
             step_id="dhcp_confirm",
-            data_schema=STEP_DHCP_DATA_SCHEMA,
+            data_schema=_dhcp_confirm_schema(discovered_host),
             errors=errors,
         )
 

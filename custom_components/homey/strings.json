@@ -3,7 +3,15 @@
     "step": {
       "user": {
         "title": "Connect to Homey",
-        "description": "Enter your Homey IP address and API key to connect.\n\n⚠️ **For Real-Time Updates**: To enable Socket.IO instant updates (< 1 second), create a new API key in Homey Settings → API Keys with the **System → View System** (`homey.system.readonly`) permission enabled. Without this, the integration will use polling (5-10 seconds).",
+        "description": "Enter your Homey IP address or hostname (e.g. homey.local or 192.168.1.x) and API key to connect. Use Add Integration → Homey for manual setup, or discovery for automatic detection.\n\n⚠️ **For Real-Time Updates**: To enable Socket.IO instant updates (< 1 second), create a new API key in Homey Settings → API Keys with the **System → View System** (`homey.system.readonly`) permission enabled. Without this, the integration will use polling (5-10 seconds).",
+        "data": {
+          "host": "Homey IP Address or Hostname",
+          "token": "API Key"
+        }
+      },
+      "dhcp_confirm": {
+        "title": "Homey Found",
+        "description": "Homey was discovered. Verify or edit the host (use IP if hostname fails), then enter your API key.",
         "data": {
           "host": "Homey IP Address or Hostname",
           "token": "API Key"

@@ -38,7 +38,10 @@ class HomeyAPI:
 
     def __init__(self, host: str, token: str, preferred_endpoint: str | None = None) -> None:
         """Initialize the Homey API client."""
-        self.host = host.rstrip("/")
+        host = (host or "").strip().rstrip("/")
+        if host and not host.startswith(("http://", "https://")):
+            host = f"http://{host}"
+        self.host = host
         self.token = token
         self.preferred_endpoint = preferred_endpoint  # "manager" or "v1"
         self.session: aiohttp.ClientSession | None = None
@@ -60,6 +63,7 @@ class HomeyAPI:
         self._sio_reconnect_task: asyncio.Task | None = None
         self._sio_reconnect_interval: int = 60  # Try to reconnect every 60 seconds
         self._sio_last_reconnect_attempt: float = 0
+        self._sio_http_session: aiohttp.ClientSession | None = None  # Must be closed on disconnect
         self._polling_logged: bool = False  # Track if we've logged polling status
         self._auth_failure_count: int = 0
         self._last_auth_failure: float | None = None
@@ -1343,10 +1347,16 @@ class HomeyAPI:
         
         try:
             # Determine Socket.IO base URL (strip any path like /api from host)
-            # Use yarl.URL to properly extract scheme/host/port only
+            # Host MUST have scheme (http/https) - yarl treats bare IP/hostname as path, giving empty host -> ws:///
             from yarl import URL
             
-            raw_url = URL(self.host.rstrip("/"))
+            host_str = self.host.rstrip("/")
+            if not host_str or host_str == "unknown":
+                _LOGGER.error("Socket.IO: Host is empty or invalid, skipping connection")
+                return False
+            if not host_str.startswith(("http://", "https://")):
+                host_str = f"http://{host_str}"
+            raw_url = URL(host_str)
             base_url = str(raw_url.with_path("").with_query(None))
             
             _LOGGER.debug("  → Original host: %s", self.host)
@@ -1364,8 +1374,8 @@ class HomeyAPI:
             else:
                 connector = aiohttp.TCPConnector(ssl=False)
             
-            # Create aiohttp session with the connector
-            http_session = aiohttp.ClientSession(connector=connector)
+            # Create aiohttp session with the connector (must be closed in _disconnect_socketio)
+            self._sio_http_session = aiohttp.ClientSession(connector=connector)
             
             # Disable verbose logging from socketio library
             import logging
@@ -1380,7 +1390,7 @@ class HomeyAPI:
             # Step 1: Create single client and connect ONLY to root namespace
             _LOGGER.debug("Step 1/5: Creating Socket.IO client and connecting to root namespace")
             self.sio = socketio.AsyncClient(
-                http_session=http_session,
+                http_session=self._sio_http_session,
                 logger=False,
                 engineio_logger=False,
             )
@@ -1401,7 +1411,7 @@ class HomeyAPI:
             
             _LOGGER.debug("  → Connecting to %s (root namespace ONLY)", base_url)
             await self.sio.connect(
-                base_url,  # http://192.168.1.32 (no token, no /api path)
+                base_url,  # e.g. http://homey.local or http://192.168.1.100 (no path)
                 transports=["websocket"],
                 wait_timeout=10,
                 namespaces=["/"],  # CRITICAL: Only root namespace
@@ -2195,6 +2205,15 @@ class HomeyAPI:
                 _LOGGER.debug("Error disconnecting Socket.IO: %s", err)
             finally:
                 self.sio = None
+        
+        # Close the aiohttp session we created for Socket.IO (prevents "Unclosed client session")
+        if self._sio_http_session:
+            try:
+                await self._sio_http_session.close()
+            except Exception as err:
+                _LOGGER.debug("Error closing Socket.IO http session: %s", err)
+            finally:
+                self._sio_http_session = None
         
         self._sio_connected = False
         self.sio_namespace = None

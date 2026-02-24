@@ -235,28 +235,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             notification_id=f"{DOMAIN}_pending_rescope",
         )
 
-    # Warn if another entry points to the same Homey (host or homey_id)
+    # Abort setup if another entry points to the same Homey - prevents duplicate entities
     for other_entry in hass.config_entries.async_entries(DOMAIN):
         if other_entry.entry_id == entry.entry_id:
             continue
-        if (
-            other_entry.data.get("homey_id") == homey_id
-            or other_entry.data.get(CONF_HOST) == entry.data.get(CONF_HOST)
-        ):
-            _LOGGER.warning(
-                "Another Homey entry (%s) appears to target the same Homey (%s). "
-                "This can cause device collisions.",
+        other_homey_id = other_entry.data.get("homey_id") or other_entry.data.get(CONF_HOST)
+        if other_homey_id == homey_id:
+            _LOGGER.error(
+                "Cannot set up Homey: entry %s already targets the same hub (%s). "
+                "Remove the duplicate from Settings → Devices & Services.",
                 other_entry.entry_id,
                 homey_id,
             )
             persistent_notification.async_create(
                 hass,
-                "Another Homey entry appears to target the same hub. "
-                "This can cause device collisions. Consider removing the duplicate entry.",
-                title="Homey: Duplicate hub detected",
-                notification_id=f"{DOMAIN}_duplicate_hub",
+                f"Homey integration cannot load: you have two entries for the same hub. "
+                f"Go to Settings → Devices & Services → Homey and remove the duplicate entry.",
+                title="Homey: Remove duplicate hub entry",
+                notification_id=f"{DOMAIN}_duplicate_hub_{entry.entry_id}",
             )
-            break
+            await api.disconnect()
+            return False
+        if other_entry.data.get(CONF_HOST) == entry.data.get(CONF_HOST):
+            _LOGGER.error(
+                "Cannot set up Homey: entry %s uses the same host (%s). "
+                "Remove the duplicate from Settings → Devices & Services.",
+                other_entry.entry_id,
+                entry.data.get(CONF_HOST),
+            )
+            persistent_notification.async_create(
+                hass,
+                f"Homey integration cannot load: you have two entries for the same host. "
+                f"Go to Settings → Devices & Services → Homey and remove the duplicate entry.",
+                title="Homey: Remove duplicate hub entry",
+                notification_id=f"{DOMAIN}_duplicate_host_{entry.entry_id}",
+            )
+            await api.disconnect()
+            return False
 
     # Enable multi-homey mode only when more than one hub is configured
     entries = hass.config_entries.async_entries(DOMAIN)

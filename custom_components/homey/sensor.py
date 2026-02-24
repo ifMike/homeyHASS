@@ -19,6 +19,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -450,6 +451,14 @@ async def async_setup_entry(
             # Skip if already handled or explicitly excluded
             if capability_id in CAPABILITY_TO_SENSOR or capability_id in GENERIC_SENSOR_EXCLUDE:
                 continue
+            # Skip measure_*, meter_*, etc. - already handled in loop 2 above
+            if (
+                capability_id.startswith("measure_")
+                or capability_id.startswith("meter_")
+                or capability_id == "accumulatedCost"
+                or capability_id in ("clean_time", "clean_area", "clean_last", "position_x", "position_y")
+            ):
+                continue
 
             cap_type = cap_data.get("type")
             is_getable = cap_data.get("getable", False)
@@ -486,7 +495,27 @@ async def async_setup_entry(
                     )
                 )
 
-    async_add_entities(entities)
+    # Deduplicate by unique_id (prevents "Platform does not generate unique IDs" errors)
+    seen_ids: set[str] = set()
+    deduped: list[HomeySensor] = []
+    for e in entities:
+        if e.unique_id in seen_ids:
+            continue
+        seen_ids.add(e.unique_id)
+        deduped.append(e)
+
+    # Filter out entities whose unique_id already exists in registry (prevents orphan errors)
+    registry = async_get_entity_registry(hass)
+    filtered = [
+        e for e in deduped
+        if registry.async_get_entity_id("sensor", DOMAIN, e.unique_id) is None
+    ]
+    if len(filtered) < len(deduped):
+        _LOGGER.debug(
+            "Skipped %d sensors (unique_id already in registry)",
+            len(deduped) - len(filtered),
+        )
+    async_add_entities(filtered)
 
 
 class HomeySensor(CoordinatorEntity, SensorEntity):

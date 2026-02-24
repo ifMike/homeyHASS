@@ -15,10 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **measure_distance capability**: Map `measure_distance` to sensor with DISTANCE device class and cm unit for ultrasonic/ToF presence sensors.
 
 ### Changed
-- **Discovery form**: Confirmation form now includes an editable host field so you can see and correct the detected IP (e.g. when Homey has multiple interfaces).
+- **Discovery form**: Confirmation form includes editable host so you can correct the detected address (e.g. when Homey has multiple interfaces). Default host for manual setup is now `homey.local` instead of a fixed IP. Added strings for discovery confirmation step.
+- **Logging**: Reduced per-entity and discovery logs from INFO/WARNING to DEBUG for light, switch, and Zeroconf to avoid "logging too frequently" warnings.
 
 ### Fixed
-- **Zeroconf multi-address**: When Homey has multiple interfaces (IPv6, Ethernet, WiFi), pick the first reachable address (IPv4 before IPv6) instead of using an unreachable primary.
+- **Duplicate hub detection**: Abort setup (instead of warning) when another config entry targets the same Homey hub or host, with a clear notification to remove the duplicate.
+- **Sensor duplicate unique IDs**: Sensors were created twice for `measure_*` and `meter_*` capabilities (handled in both generic loops). Now skipped in the third loop, with deduplication by unique_id before add.
+- **Zeroconf discovery**: When no address is reachable (e.g. HA in Docker), prefer IPv4 over IPv6; use hostname instead of IPv6 when no IPv4 is available (IPv6 often fails on local networks).
 - **Manifest**: MAC address must be uppercase (9013DA) and keys sorted for hassfest validation.
 
 ## [1.1.9] - 2026-02-18

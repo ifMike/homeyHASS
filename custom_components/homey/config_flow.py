@@ -41,7 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST, default="192.168.1.100"): str,
+        vol.Required(CONF_HOST, default="homey.local"): str,
         vol.Required(CONF_TOKEN): str,
     }
 )
@@ -116,7 +116,10 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             )
 
         await self.async_set_unique_id(macaddress)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.ip})
+        host_for_update = discovery_info.ip
+        if host_for_update and not host_for_update.startswith(("http://", "https://")):
+            host_for_update = f"http://{host_for_update}"
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host_for_update})
 
         self._discovered_ip = discovery_info.ip
 
@@ -134,10 +137,10 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         When Homey has multiple interfaces (e.g. Ethernet + WiFi), we try each
         address and prefer the first reachable one (IPv4 before IPv6).
         """
-        hostname = discovery_info.hostname or discovery_info.host
-        addresses = discovery_info.addresses or [discovery_info.host]
+        hostname = (discovery_info.hostname or discovery_info.host or "").rstrip(".")
+        addresses = discovery_info.addresses or ([discovery_info.host] if discovery_info.host else [])
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Zeroconf discovery: Homey detected at %s (hostname: %s)",
             ", ".join(addresses),
             hostname,
@@ -147,19 +150,31 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         reachable = await _async_find_reachable_host(addresses)
         if reachable:
             host = reachable
-            _LOGGER.info("Zeroconf discovery: Using reachable address %s", host)
+            _LOGGER.info("Zeroconf discovery: Homey found at %s", host)
         else:
-            # Prefer IPv4 as default when none reachable (e.g. HA in Docker)
+            # Prefer IPv4 when none reachable; avoid IPv6 (often fails on local networks)
             ipv4 = [a for a in addresses if ":" not in a]
-            host = ipv4[0] if ipv4 else addresses[0]
-            _LOGGER.warning(
-                "Zeroconf discovery: Could not reach Homey at any address - "
-                "defaulting to %s (user can correct in form)",
-                host,
-            )
+            if ipv4:
+                host = ipv4[0]
+                _LOGGER.debug(
+                    "Zeroconf discovery: Could not reach Homey - defaulting to IPv4 %s",
+                    host,
+                )
+            elif hostname:
+                host = hostname
+                _LOGGER.debug(
+                    "Zeroconf discovery: Could not reach Homey - using hostname %s (user can enter IP if needed)",
+                    host,
+                )
+            else:
+                host = addresses[0] if addresses else "homey.local"
+                _LOGGER.debug("Zeroconf discovery: Defaulting to %s", host)
 
-        await self.async_set_unique_id(hostname)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+        await self.async_set_unique_id(hostname or host or "homey")
+        host_for_update = host
+        if host_for_update and not host_for_update.startswith(("http://", "https://")):
+            host_for_update = f"http://{host_for_update}"
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host_for_update})
 
         self._discovered_ip = host
 
@@ -174,7 +189,7 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         wrong address (e.g. IPv6 or different subnet).
         """
         errors: dict[str, str] = {}
-        discovered_host = getattr(self, "_discovered_ip", "192.168.1.100")
+        discovered_host = getattr(self, "_discovered_ip", "homey.local")
 
         if user_input is not None:
             token = user_input[CONF_TOKEN].strip()

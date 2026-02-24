@@ -91,7 +91,7 @@ async def async_setup_entry(
             if "philips" in driver_uri and "hue" in driver_uri:
                 if has_onoff:
                     is_known_light_device = True
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "Detected Philips Hue device %s (%s) - treating as light (driver: %s, dim=%s, temp=%s, hue=%s)",
                         device_id, device_name, device.get("driverUri", "unknown"), has_dim, has_temp, has_hue
                     )
@@ -109,7 +109,7 @@ async def async_setup_entry(
         if driver_uri and "sunricher" in driver_uri:
             if has_onoff:
                 is_known_light_device = True
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Detected Sunricher dimming device %s (%s) - treating as light (driver: %s, dim=%s)",
                     device_id, device_name, device.get("driverUri", "unknown"), has_dim
                 )
@@ -141,18 +141,9 @@ async def async_setup_entry(
         )
         
         if is_light:
-            # Log capabilities for debugging
-            _LOGGER.info(
-                "Creating light entity for device %s (%s) - class=%s, onoff=%s, dim=%s, hue=%s, saturation=%s, temp=%s, driver=%s",
-                device_id,
-                device_name,
-                device_class or "none",
-                has_onoff,
-                has_dim,
-                has_hue,
-                has_saturation,
-                has_temp,
-                device.get("driverUri", "unknown")
+            _LOGGER.debug(
+                "Creating light entity for device %s (%s) - class=%s, onoff=%s, dim=%s, hue=%s, temp=%s",
+                device_id, device_name, device_class or "none", has_onoff, has_dim, has_hue, has_temp,
             )
             entities.append(HomeyLight(coordinator, device_id, device, api, zones, invert_temp, homey_id, multi_homey))
         else:
@@ -262,16 +253,9 @@ class HomeyLight(CoordinatorEntity, LightEntity):
         else:
             self._attr_color_mode = next(iter(color_modes)) if color_modes else ColorMode.ONOFF
         
-        # Log color modes for debugging (use INFO so it shows in logs)
-        _LOGGER.info(
-            "Light %s (%s) initialized - Capabilities: dim=%s, hs=%s, temp=%s - Color modes: %s, Current mode: %s",
-            device_id,
-            device.get("name", "Unknown"),
-            has_dim,
-            has_hs,
-            has_temp,
-            color_modes,
-            self._attr_color_mode,
+        _LOGGER.debug(
+            "Light %s (%s) initialized - dim=%s, hs=%s, temp=%s - color_modes=%s",
+            device_id, device.get("name", "Unknown"), has_dim, has_hs, has_temp, color_modes,
         )
         
         # Set color temperature range in Kelvin (required for COLOR_TEMP mode)

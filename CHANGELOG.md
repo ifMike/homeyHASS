@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Logging**: Reduced per-entity and discovery logs from INFO/WARNING to DEBUG for light, switch, and Zeroconf to avoid "logging too frequently" warnings.
 
 ### Fixed
+- **Log spam when Homey unreachable**: Rate limit connection/polling error logs to at most every 5 minutes when Homey is down. Prevents thousands of repeated "No devices returned", "Polling failed", and "Socket.IO connection error" messages overnight. Subsequent occurrences logged at DEBUG.
 - **Duplicate hub detection**: Abort setup (instead of warning) when another config entry targets the same Homey hub or host, with a clear notification to remove the duplicate.
 - **Sensor duplicate unique IDs**: Sensors were created twice for `measure_*` and `meter_*` capabilities (handled in both generic loops). Now skipped in the third loop, with deduplication by unique_id before add.
 - **Zeroconf discovery**: When no address is reachable (e.g. HA in Docker), prefer IPv4 over IPv6; use hostname instead of IPv6 when no IPv4 is available (IPv6 often fails on local networks).

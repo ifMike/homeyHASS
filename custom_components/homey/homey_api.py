@@ -67,6 +67,9 @@ class HomeyAPI:
         self._polling_logged: bool = False  # Track if we've logged polling status
         self._auth_failure_count: int = 0
         self._last_auth_failure: float | None = None
+        self._last_polling_error_log: float = 0  # Rate limit repeated polling errors
+        self._last_sio_error_log: float = 0  # Rate limit repeated Socket.IO errors
+        self._ERROR_LOG_INTERVAL: float = 300  # Log at ERROR/WARNING at most every 5 min
 
     async def connect(self) -> None:
         """Connect to Homey API."""
@@ -210,6 +213,7 @@ class HomeyAPI:
                         # Reset auth failure tracking on success
                         self._auth_failure_count = 0
                         self._last_auth_failure = None
+                        self._last_polling_error_log = 0  # Reset on success
                         return self.devices
                     elif response.status == 401:
                         auth_error_count += 1
@@ -254,11 +258,16 @@ class HomeyAPI:
             )
             return self.devices or {}
 
-        # Log error if polling was previously working, or if this is the first attempt
-        if self._polling_logged:
-            _LOGGER.error("Polling failed - unable to retrieve devices from any endpoint")
+        # Rate limit: log at ERROR on first occurrence, then at most every 5 min
+        now = time.time()
+        if now - self._last_polling_error_log >= self._ERROR_LOG_INTERVAL:
+            self._last_polling_error_log = now
+            if self._polling_logged:
+                _LOGGER.error("Polling failed - unable to retrieve devices from any endpoint")
+            else:
+                _LOGGER.error("Failed to retrieve devices from any endpoint")
         else:
-            _LOGGER.error("Failed to retrieve devices from any endpoint")
+            _LOGGER.debug("Polling failed (rate limited) - unable to retrieve devices")
         return {}
 
     async def get_device(self, device_id: str) -> dict[str, Any] | None:
@@ -1403,8 +1412,13 @@ class HomeyAPI:
                 _LOGGER.debug("⚠️ Root namespace / disconnected")
             
             def on_root_connect_error(data):
-                _LOGGER.error("❌ Root namespace / connect_error: %s", data)
-            
+                now = time.time()
+                if now - self._last_sio_error_log >= self._ERROR_LOG_INTERVAL:
+                    self._last_sio_error_log = now
+                    _LOGGER.error("❌ Root namespace / connect_error: %s", data)
+                else:
+                    _LOGGER.debug("Root namespace connect_error (rate limited): %s", data)
+
             self.sio.on("connect", on_root_connect, namespace="/")
             self.sio.on("disconnect", on_root_disconnect, namespace="/")
             self.sio.on("connect_error", on_root_connect_error, namespace="/")
@@ -1604,6 +1618,7 @@ class HomeyAPI:
                 connected_namespaces = set(getattr(self.sio, "namespaces", {}).keys())
                 if self.sio_namespace in connected_namespaces:
                     self._sio_connected = True
+                    self._last_sio_error_log = 0  # Reset so next failure is logged
                     _LOGGER.info("Socket.IO real-time updates enabled")
                     _LOGGER.debug("  → Root namespace: /")
                     _LOGGER.debug("  → API namespace: %s", self.sio_namespace)
@@ -1632,11 +1647,16 @@ class HomeyAPI:
                 return False
             
         except Exception as err:
-            _LOGGER.error("Socket.IO connection error: %s", err, exc_info=True)
-            _LOGGER.info("=" * 60)
-            _LOGGER.info("Socket.IO Connection Test - FAILED")
-            _LOGGER.info("Will use polling (1 second interval) for updates")
-            _LOGGER.info("=" * 60)
+            now = time.time()
+            if now - self._last_sio_error_log >= self._ERROR_LOG_INTERVAL:
+                self._last_sio_error_log = now
+                _LOGGER.error("Socket.IO connection error: %s", err, exc_info=True)
+                _LOGGER.info("=" * 60)
+                _LOGGER.info("Socket.IO Connection Test - FAILED")
+                _LOGGER.info("Will use polling (1 second interval) for updates")
+                _LOGGER.info("=" * 60)
+            else:
+                _LOGGER.debug("Socket.IO connection error (rate limited): %s", err)
             self._sio_connecting = False  # Clear flag before disconnect
             await self._disconnect_socketio()
             return False
@@ -1983,14 +2003,19 @@ class HomeyAPI:
     
     def _on_sio_connect_error(self, data: Any) -> None:
         """Handle Socket.IO connection error."""
-        if self._sio_connected:  # Only log if we were previously connected
-            _LOGGER.error("=" * 60)
-            _LOGGER.error("Socket.IO CONNECTION ERROR: %s", data)
-            _LOGGER.error("Falling back to polling (5-10 second interval)")
-            _LOGGER.error("Reconnection will be attempted automatically")
-            _LOGGER.error("=" * 60)
+        now = time.time()
+        if now - self._last_sio_error_log >= self._ERROR_LOG_INTERVAL:
+            self._last_sio_error_log = now
+            if self._sio_connected:
+                _LOGGER.error("=" * 60)
+                _LOGGER.error("Socket.IO CONNECTION ERROR: %s", data)
+                _LOGGER.error("Falling back to polling (5-10 second interval)")
+                _LOGGER.error("Reconnection will be attempted automatically")
+                _LOGGER.error("=" * 60)
+            else:
+                _LOGGER.error("Socket.IO connection error during initial setup: %s", data)
         else:
-            _LOGGER.error("Socket.IO connection error during initial setup: %s", data)
+            _LOGGER.debug("Socket.IO connect_error (rate limited): %s", data)
         self._sio_connected = False
         # Start reconnection task if not already running
         self._start_sio_reconnect_task()

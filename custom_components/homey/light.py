@@ -235,9 +235,8 @@ class HomeyLight(CoordinatorEntity, LightEntity):
         else:
             # Just on/off - this can happen for known light devices where capabilities aren't fully exposed
             # We still create a light entity but with limited functionality
-            _LOGGER.warning(
-                "Device %s (%s) created as light but has no dim/hue/temp capabilities - using ONOFF mode only. "
-                "This may indicate missing capability exposure in Homey.",
+            _LOGGER.debug(
+                "Device %s (%s) created as light but has no dim/hue/temp capabilities - using ONOFF mode only",
                 device_id,
                 device.get("name", "Unknown")
             )

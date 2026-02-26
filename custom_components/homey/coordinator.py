@@ -93,6 +93,9 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         self._previous_device_ids: set[str] = set()
         self._last_recovery_attempt: float = 0.0
         self._recovery_cooldown: int = recovery_cooldown or 300  # seconds
+        self._last_no_devices_log: float = 0.0  # Rate limit "No devices" warnings
+        self._last_polling_error_log: float = 0.0  # Rate limit polling error logs
+        self._ERROR_LOG_INTERVAL: float = 300  # Log at WARNING/ERROR at most every 5 min
         self._fallback_poll_interval: int = (
             update_interval.seconds if update_interval else 10
         )
@@ -190,16 +193,25 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
             # If we suddenly get no devices after previously having data,
             # try a one-time recovery (Homey reboot/network blip).
             if not devices and self._previous_device_ids:
+                now = time.time()
                 if self._should_attempt_recovery():
-                    _LOGGER.warning(
-                        "No devices returned from Homey API - attempting automatic reconnect"
-                    )
+                    if now - self._last_no_devices_log >= self._ERROR_LOG_INTERVAL:
+                        self._last_no_devices_log = now
+                        _LOGGER.warning(
+                            "No devices returned from Homey API - attempting automatic reconnect"
+                        )
+                    else:
+                        _LOGGER.debug("No devices - attempting reconnect (rate limited)")
                     await self._attempt_api_recovery()
                     devices = await self.api.get_devices()
                 if not devices:
-                    _LOGGER.warning(
-                        "No devices returned from Homey API - keeping last known devices"
-                    )
+                    if now - self._last_no_devices_log >= self._ERROR_LOG_INTERVAL:
+                        self._last_no_devices_log = now
+                        _LOGGER.warning(
+                            "No devices returned from Homey API - keeping last known devices"
+                        )
+                    else:
+                        _LOGGER.debug("No devices - keeping last known (rate limited)")
                     return self.data or {}
             
             # Detect newly seen capabilities and notify with a report link
@@ -217,6 +229,8 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                 await self._remove_deleted_devices(deleted_device_ids)
             
             self._previous_device_ids = current_device_ids
+            self._last_no_devices_log = 0.0  # Reset on success
+            self._last_polling_error_log = 0.0  # Reset on success
             
             update_duration = time.time() - update_start
             # Only log debug info on errors or if update takes unusually long (>1 second)
@@ -227,11 +241,16 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         except Exception as err:
             if isinstance(err, ConfigEntryAuthFailed):
                 raise
+            now = time.time()
             if self._should_attempt_recovery():
-                _LOGGER.warning(
-                    "Polling error from Homey API - attempting automatic reconnect: %s",
-                    err,
-                )
+                if now - self._last_polling_error_log >= self._ERROR_LOG_INTERVAL:
+                    self._last_polling_error_log = now
+                    _LOGGER.warning(
+                        "Polling error from Homey API - attempting automatic reconnect: %s",
+                        err,
+                    )
+                else:
+                    _LOGGER.debug("Polling error - attempting reconnect (rate limited): %s", err)
                 await self._attempt_api_recovery()
                 try:
                     devices = await self.api.get_devices()
@@ -257,7 +276,11 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                         "Polling recovery fetch failed: %s",
                         recovery_err,
                     )
-            _LOGGER.error("Polling failed - error communicating with Homey: %s", err)
+            if now - self._last_polling_error_log >= self._ERROR_LOG_INTERVAL:
+                self._last_polling_error_log = now
+                _LOGGER.error("Polling failed - error communicating with Homey: %s", err)
+            else:
+                _LOGGER.debug("Polling failed (rate limited): %s", err)
             raise UpdateFailed(f"Error communicating with Homey: {err}") from err
 
     def _should_attempt_recovery(self) -> bool:

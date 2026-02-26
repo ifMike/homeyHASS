@@ -116,10 +116,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             )
 
         await self.async_set_unique_id(macaddress)
-        host_for_update = discovery_info.ip
-        if host_for_update and not host_for_update.startswith(("http://", "https://")):
-            host_for_update = f"http://{host_for_update}"
-        self._abort_if_unique_id_configured(updates={CONF_HOST: host_for_update})
+        # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
+        # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
+        self._abort_if_unique_id_configured()
 
         self._discovered_ip = discovery_info.ip
 
@@ -171,10 +170,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 _LOGGER.debug("Zeroconf discovery: Defaulting to %s", host)
 
         await self.async_set_unique_id(hostname or host or "homey")
-        host_for_update = host
-        if host_for_update and not host_for_update.startswith(("http://", "https://")):
-            host_for_update = f"http://{host_for_update}"
-        self._abort_if_unique_id_configured(updates={CONF_HOST: host_for_update})
+        # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
+        # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
+        self._abort_if_unique_id_configured()
 
         self._discovered_ip = host
 

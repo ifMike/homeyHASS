@@ -56,10 +56,28 @@ def _dhcp_confirm_schema(discovered_host: str) -> vol.Schema:
     )
 
 
+def _is_ip_address(addr: str) -> bool:
+    """Return True if addr looks like an IP, not a hostname (e.g. .local)."""
+    if not addr or ".local" in addr.lower():
+        return False
+    # IPv4: dotted quad
+    if ":" not in addr and addr.replace(".", "").isdigit():
+        return True
+    # IPv6: contains colons
+    if ":" in addr:
+        return True
+    return False
+
+
+def _filter_ip_addresses(addresses: list[str]) -> list[str]:
+    """Return only entries that look like IP addresses (exclude .local hostnames)."""
+    return [a for a in addresses if _is_ip_address(a)]
+
+
 async def _async_find_reachable_host(addresses: list[str]) -> str | None:
     """Try addresses (IPv4 first) and return the first reachable one."""
-    ipv4 = [a for a in addresses if ":" not in a]
-    ipv6 = [a for a in addresses if ":" in a]
+    ipv4 = [a for a in addresses if ":" not in a and _is_ip_address(a)]
+    ipv6 = [a for a in addresses if ":" in a and _is_ip_address(a)]
     for addr in ipv4 + ipv6:
         if await _async_check_homey_reachable(addr):
             return addr
@@ -137,37 +155,36 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         address and prefer the first reachable one (IPv4 before IPv6).
         """
         hostname = (discovery_info.hostname or discovery_info.host or "").rstrip(".")
-        addresses = discovery_info.addresses or ([discovery_info.host] if discovery_info.host else [])
+        raw_addresses = discovery_info.addresses or ([discovery_info.host] if discovery_info.host else [])
+        # Only use IP addresses - never .local hostnames (unstable, can resolve to wrong interface)
+        addresses = _filter_ip_addresses(raw_addresses)
 
         _LOGGER.debug(
             "Zeroconf discovery: Homey detected at %s (hostname: %s)",
-            ", ".join(addresses),
+            ", ".join(addresses) if addresses else "no IPs",
             hostname,
         )
 
-        # Try all addresses (IPv4 first) and use first reachable
+        # Try all addresses (IPv4 first) and use first reachable - always prefer IP over hostname
         reachable = await _async_find_reachable_host(addresses)
         if reachable:
             host = reachable
             _LOGGER.info("Zeroconf discovery: Homey found at %s", host)
-        else:
-            # Prefer IPv4 when none reachable; avoid IPv6 (often fails on local networks)
+        elif addresses:
+            # Use first IPv4, else first address - never use .local
             ipv4 = [a for a in addresses if ":" not in a]
-            if ipv4:
-                host = ipv4[0]
-                _LOGGER.debug(
-                    "Zeroconf discovery: Could not reach Homey - defaulting to IPv4 %s",
-                    host,
-                )
-            elif hostname:
-                host = hostname
-                _LOGGER.debug(
-                    "Zeroconf discovery: Could not reach Homey - using hostname %s (user can enter IP if needed)",
-                    host,
-                )
-            else:
-                host = addresses[0] if addresses else "homey.local"
-                _LOGGER.debug("Zeroconf discovery: Defaulting to %s", host)
+            host = ipv4[0] if ipv4 else addresses[0]
+            _LOGGER.debug(
+                "Zeroconf discovery: Could not reach Homey - using IP %s (user can correct if needed)",
+                host,
+            )
+        else:
+            # No IP from discovery - use hostname only as last resort (user should replace with IP in form)
+            host = hostname if hostname else "homey.local"
+            _LOGGER.debug(
+                "Zeroconf discovery: No IP addresses from mDNS - using %s (user should enter IP in form)",
+                host,
+            )
 
         await self.async_set_unique_id(hostname or host or "homey")
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)

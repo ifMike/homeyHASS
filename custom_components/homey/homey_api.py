@@ -73,6 +73,14 @@ class HomeyAPI:
 
     async def connect(self) -> None:
         """Connect to Homey API."""
+        _LOGGER.info("Connecting to Homey at %s", self.host)
+        # Warn if using mDNS (.local) - can resolve to unstable interface (e.g. WiFi 192.168.3.x)
+        if ".local" in self.host.lower():
+            _LOGGER.warning(
+                "Using mDNS hostname (%s) - if you have connection issues or toggles fail, "
+                "use static IP in Options (e.g. http://192.168.1.32 for Ethernet)",
+                self.host,
+            )
         # Detect if using HTTPS for SSL handling
         # For HTTPS connections (self-hosted servers), we need SSL but disable verification for self-signed certs
         # For HTTP connections (local Homey), disable SSL entirely
@@ -194,6 +202,7 @@ class HomeyAPI:
             ]
         
         auth_error_count = 0
+        last_connection_error: Exception | None = None
         for endpoint in endpoints_to_try:
             try:
                 async with self.session.get(f"{self.host}{endpoint}") as response:
@@ -232,6 +241,7 @@ class HomeyAPI:
                         _LOGGER.debug("Failed to get devices from %s: %s", endpoint, response.status)
                         continue
             except Exception as err:
+                last_connection_error = err
                 _LOGGER.debug("Error getting devices from %s: %s", endpoint, err)
                 continue
         
@@ -262,10 +272,19 @@ class HomeyAPI:
         now = time.time()
         if now - self._last_polling_error_log >= self._ERROR_LOG_INTERVAL:
             self._last_polling_error_log = now
+            err_detail = f": {last_connection_error}" if last_connection_error else ""
             if self._polling_logged:
-                _LOGGER.error("Polling failed - unable to retrieve devices from any endpoint")
+                _LOGGER.error(
+                    "Polling failed - unable to retrieve devices from any endpoint (host=%s)%s",
+                    self.host,
+                    err_detail,
+                )
             else:
-                _LOGGER.error("Failed to retrieve devices from any endpoint")
+                _LOGGER.error(
+                    "Failed to retrieve devices from any endpoint (host=%s)%s",
+                    self.host,
+                    err_detail,
+                )
         else:
             _LOGGER.debug("Polling failed (rate limited) - unable to retrieve devices")
         return {}
@@ -281,7 +300,8 @@ class HomeyAPI:
             f"{API_DEVICES_NO_SLASH}/{device_id}",  # /api/manager/devices/device/{id}
             f"{API_DEVICES_V1}/{device_id}",  # /api/v1/device/{id}
         ]
-        
+
+        last_connection_error: Exception | None = None
         for endpoint in endpoints_to_try:
             try:
                 async with self.session.get(f"{self.host}{endpoint}") as response:
@@ -294,10 +314,17 @@ class HomeyAPI:
                         _LOGGER.debug("Failed to get device %s from %s: %s", device_id, endpoint, response.status)
                         continue
             except Exception as err:
+                last_connection_error = err
                 _LOGGER.debug("Error getting device %s from %s: %s", device_id, endpoint, err)
                 continue
-        
-        _LOGGER.error("Failed to get device %s from any endpoint", device_id)
+
+        err_detail = f": {last_connection_error}" if last_connection_error else ""
+        _LOGGER.error(
+            "Failed to get device %s from any endpoint (host=%s)%s",
+            device_id,
+            self.host,
+            err_detail,
+        )
         return None
 
     async def set_capability_value(
@@ -339,6 +366,7 @@ class HomeyAPI:
                 (API_DEVICES_V1, "v1"),
             ]
         
+        last_connection_error: Exception | None = None
         endpoints_to_try = []
         for base_endpoint, _ in base_endpoints:
             # Try different endpoint formats
@@ -416,6 +444,7 @@ class HomeyAPI:
                             )
                             continue
             except Exception as err:
+                last_connection_error = err
                 _LOGGER.debug(
                     "Exception setting capability %s=%s on device %s via %s (%s): %s",
                     capability_id,
@@ -426,15 +455,16 @@ class HomeyAPI:
                     err,
                 )
                 continue
-        
-        # Log all endpoints we tried for debugging
+
+        err_detail = f": {last_connection_error}" if last_connection_error else ""
         _LOGGER.error(
-            "Failed to set capability %s=%s on device %s from any endpoint. Tried %d endpoints: %s",
+            "Failed to set capability %s=%s on device %s from any endpoint (host=%s). Tried %d endpoints%s",
             capability_id,
             converted_value,
             device_id,
+            self.host,
             len(endpoints_to_try),
-            [f"{endpoint} ({method})" for endpoint, method in endpoints_to_try[:5]],  # Show first 5
+            err_detail,
         )
         return False
 
@@ -733,10 +763,11 @@ class HomeyAPI:
                 (f"{API_BASE_V1}/flow/{flow_id}/run", "PUT"),  # V1 run endpoint
             ]
 
+        last_connection_error: Exception | None = None
         for endpoint, method in endpoints_to_try:
             try:
                 url = f"{self.host}{endpoint}"
-                
+
                 if method == "POST":
                     async with self.session.post(url) as response:
                         status = response.status
@@ -756,9 +787,16 @@ class HomeyAPI:
                         else:
                             continue
             except Exception as err:
+                last_connection_error = err
                 continue
 
-        _LOGGER.error("Failed to trigger flow %s from any endpoint", flow_id)
+        err_detail = f": {last_connection_error}" if last_connection_error else ""
+        _LOGGER.error(
+            "Failed to trigger flow %s from any endpoint (host=%s)%s",
+            flow_id,
+            self.host,
+            err_detail,
+        )
         return False
 
     async def get_zones(self) -> dict[str, dict[str, Any]]:
@@ -1008,7 +1046,7 @@ class HomeyAPI:
                         if not self.logic_variables:
                             _LOGGER.debug("Logic variables endpoint returned empty result")
                         else:
-                            _LOGGER.info(
+                            _LOGGER.debug(
                                 "Successfully retrieved %d logic variables using endpoint: %s",
                                 len(self.logic_variables),
                                 endpoint,
@@ -1347,12 +1385,14 @@ class HomeyAPI:
         Falls back to polling if Socket.IO fails.
         """
         if self._sio_connected and self.sio:
-            _LOGGER.info("Socket.IO already connected - skipping connection attempt")
+            _LOGGER.debug("Socket.IO already connected - skipping connection attempt")
             return True
-        
-        _LOGGER.info("=" * 60)
-        _LOGGER.info("Socket.IO Connection Test - Starting")
-        _LOGGER.info("=" * 60)
+
+        is_reconnect = not self._sio_connected and self._sio_reconnect_task is not None
+        log = _LOGGER.debug if is_reconnect else _LOGGER.info
+        log("=" * 60)
+        log("Socket.IO Connection Test - %s", "Reconnecting..." if is_reconnect else "Starting")
+        log("=" * 60)
         
         try:
             # Determine Socket.IO base URL (strip any path like /api from host)
@@ -2184,7 +2224,7 @@ class HomeyAPI:
                 # Only attempt if we're not already connected
                 if not self._sio_connected and self.session:
                     attempt_count += 1
-                    _LOGGER.info("Socket.IO reconnection attempt #%d...", attempt_count)
+                    _LOGGER.debug("Socket.IO reconnection attempt #%d...", attempt_count)
                     try:
                         success = await self._connect_socketio()
                         if success:

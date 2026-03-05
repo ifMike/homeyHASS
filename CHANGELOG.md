@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Virtual button support**: Homey Virtual Button devices (`button` capability) now create button entities. Added to CAPABILITY_TO_PLATFORM, boolean conversion in API, and device class mapping.
 - **Zeroconf (mDNS) discovery**: Homey broadcasts `_homey._tcp` via mDNS. Discovery works regardless of MAC address or router DHCP reporting. Helps when DHCP discovery fails (e.g. different MAC prefix, Docker networking).
 - **DHCP discovery**: Automatic discovery via MAC address prefix (9013DA) for supported routers. Based on PR #18 by @rrooggiieerr.
 - **measure_distance capability**: Map `measure_distance` to sensor with DISTANCE device class and cm unit for ultrasonic/ToF presence sensors.

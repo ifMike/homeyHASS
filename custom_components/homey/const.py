@@ -46,6 +46,7 @@ API_LOGIC_VARIABLES = f"{API_BASE_MANAGER}/logic/variable"  # Logic variables (n
 
 # Device capability mappings to HA platforms
 CAPABILITY_TO_PLATFORM = {
+    "button": "button",
     "onoff": "switch",
     "dim": "light",
     "light_hue": "light",

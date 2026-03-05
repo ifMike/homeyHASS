@@ -513,7 +513,7 @@ class HomeyAPI:
             return None
         
         # Handle boolean capabilities
-        if capability_id == "onoff" or capability_id == "locked" or capability_id == "volume_mute":
+        if capability_id in ("onoff", "locked", "volume_mute", "button"):
             if isinstance(value, bool):
                 return value
             if isinstance(value, str):

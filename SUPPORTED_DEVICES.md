@@ -154,7 +154,7 @@ The integration supports devices with the following capabilities:
 - Activate moods directly from Home Assistant
 
 ## Buttons
-- `button` - Single button device
+- `button` - Virtual button (Homey Virtual Devices) or single button device
 - `button.1`, `button.2`, etc. - Multi-button devices
 - Physical device buttons appear as Button entities for automation triggers
 - Device-specific buttons (e.g., `gardena_button.park`, `gardena_button.start`) are automatically detected

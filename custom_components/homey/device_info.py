@@ -107,6 +107,7 @@ def get_device_type(capabilities: dict[str, Any], driver_uri: str | None = None,
             "speaker": "media_player",
             "tv": "media_player",
             "remote": "sensor",  # Remotes are typically sensors/binary sensors
+            "button": "device",  # Virtual buttons, physical buttons - entities created by button platform
             "other": "device",
             # Window coverings
             "windowcoverings": "cover",  # Official Homey class for covers

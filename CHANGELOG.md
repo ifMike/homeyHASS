@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sensor duplicate unique IDs**: Sensors were created twice for `measure_*` and `meter_*` capabilities (handled in both generic loops). Now skipped in the third loop, with deduplication by unique_id before add.
 - **Manifest**: MAC address must be uppercase (9013DA) and keys sorted for hassfest validation.
 - **Logic variables**: Handle nested API responses (`{"result": {...}}`, `{"variables": [...]}`) when fetching variables. Try both `{"value": value}` and `{"variable": {"value": value}}` payload formats when updating, so toggles and edits work regardless of Homey API structure.
+- **Zeroconf discovery host field**: When mDNS provides no IP addresses (only hostname like `Homey-9013DA123456.local`), resolve the hostname to an IP so the form shows a connectable address instead of hostname/MAC.
 
 ## [1.1.9] - 2026-02-18
 

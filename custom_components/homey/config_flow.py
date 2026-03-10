@@ -1,6 +1,7 @@
 """Config flow for Homey integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import ssl
 from typing import Any
@@ -72,6 +73,33 @@ def _is_ip_address(addr: str) -> bool:
 def _filter_ip_addresses(addresses: list[str]) -> list[str]:
     """Return only entries that look like IP addresses (exclude .local hostnames)."""
     return [a for a in addresses if _is_ip_address(a)]
+
+
+async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
+    """Resolve hostname (e.g. Homey-9013DA123456.local) to an IP address.
+    Prefer IPv4. Returns None if resolution fails.
+    """
+    if not hostname or hostname == "unknown":
+        return None
+    try:
+        loop = asyncio.get_running_loop()
+        result = await loop.getaddrinfo(hostname, "http", type=2)
+        # Prefer IPv4
+        for entry in result:
+            sockaddr = entry[4]
+            if len(sockaddr) == 2:  # IPv4: (host, port)
+                ip = sockaddr[0]
+                if ip and _is_ip_address(ip):
+                    return ip
+        for entry in result:
+            sockaddr = entry[4]
+            if len(sockaddr) == 4:  # IPv6
+                ip = sockaddr[0]
+                if ip and _is_ip_address(ip):
+                    return ip
+    except (OSError, asyncio.CancelledError):
+        pass
+    return None
 
 
 async def _async_find_reachable_host(addresses: list[str]) -> str | None:
@@ -181,12 +209,23 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 host,
             )
         else:
-            # No IP from discovery - use hostname only as last resort (user should replace with IP in form)
-            host = hostname if hostname else "homey.local"
-            _LOGGER.debug(
-                "Zeroconf discovery: No IP addresses from mDNS - using %s (user should enter IP in form)",
-                host,
-            )
+            # No IP from mDNS - try to resolve hostname to get an IP for the form
+            fallback = hostname if hostname else "homey.local"
+            resolved_ip = await _async_resolve_hostname_to_ip(fallback)
+            if resolved_ip:
+                host = resolved_ip
+                _LOGGER.info(
+                    "Zeroconf discovery: No IPs in mDNS, resolved %s -> %s",
+                    fallback,
+                    host,
+                )
+            else:
+                host = fallback
+                _LOGGER.debug(
+                    "Zeroconf discovery: No IP addresses and could not resolve %s "
+                    "(user should enter IP in form)",
+                    host,
+                )
 
         await self.async_set_unique_id(hostname or host or "homey")
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)

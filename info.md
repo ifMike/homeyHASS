@@ -18,6 +18,7 @@
 - **Duplicate hub detection**: Setup aborts with clear message instead of warning
 - **Sensor duplicates**: Fixed duplicate sensors for `measure_*` and `meter_*` capabilities
 - **Logic variables**: Handle nested API responses and try both payload formats so toggles/edits work regardless of Homey API structure
+- **Zeroconf discovery**: Resolve hostname to IP when mDNS has no addresses, so the form shows a connectable IP instead of hostname/MAC
 
 For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/v1.2.0/CHANGELOG.md).
 

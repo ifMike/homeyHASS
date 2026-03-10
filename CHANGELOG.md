@@ -7,23 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.2.0] - 2026-03-03
 
 ### Added
 - **Virtual button support**: Homey Virtual Button devices (`button` capability) now create button entities. Added to CAPABILITY_TO_PLATFORM, boolean conversion in API, and device class mapping.
 - **Zeroconf (mDNS) discovery**: Homey broadcasts `_homey._tcp` via mDNS. Discovery works regardless of MAC address or router DHCP reporting. Helps when DHCP discovery fails (e.g. different MAC prefix, Docker networking).
-- **DHCP discovery**: Automatic discovery via MAC address prefix (9013DA) for supported routers. Based on PR #18 by @rrooggiieerr.
+- **DHCP discovery**: Automatic discovery via MAC address prefix (9013DA) for supported routers. DHCP updates the configured host when the router reassigns a new IP to the same MAC (e.g. after router change). Based on PR #18 by @rrooggiieerr.
 - **measure_distance capability**: Map `measure_distance` to sensor with DISTANCE device class and cm unit for ultrasonic/ToF presence sensors.
 
 ### Changed
 - **Discovery form**: Confirmation form includes editable host so you can correct the detected address (e.g. when Homey has multiple interfaces). Default host for manual setup is now `homey.local` instead of a fixed IP. Added strings for discovery confirmation step.
-- **Logging**: Reduced per-entity and discovery logs from INFO/WARNING to DEBUG for light, switch, and Zeroconf to avoid "logging too frequently" warnings. Light devices with ONOFF-only (no dim/hue/temp) now log at DEBUG.
+- **Logging**: Reduced per-entity and discovery logs from INFO/WARNING to DEBUG for light, switch, Zeroconf, logic variables success, and Socket.IO reconnection attempts. Light devices with ONOFF-only (no dim/hue/temp) now log at DEBUG. Connection failure messages (polling, set_capability, get_device, trigger_flow) now include host and exception for easier debugging. Warns when host contains `.local` and suggests using a static IP for stability.
+- **Zeroconf discovery**: Prefer IP addresses from mDNS instead of `.local` hostname when both are available; only use hostname when no IP is discovered. When no address is reachable (e.g. HA in Docker), prefer IPv4 over IPv6; use hostname instead of IPv6 when no IPv4 is available (IPv6 often fails on local networks).
 
 ### Fixed
+- **Discovery host overwrite**: Zeroconf and DHCP discovery no longer overwrite a user's manually configured host when discovery finds the same hub. Zeroconf keeps the user's host unchanged; DHCP still updates when the router reassigns a new IP to support dynamic addressing.
 - **Log spam when Homey unreachable**: Rate limit connection/polling error logs to at most every 5 minutes when Homey is down. Prevents thousands of repeated "No devices returned", "Polling failed", and "Socket.IO connection error" messages overnight. Subsequent occurrences logged at DEBUG.
 - **Duplicate hub detection**: Abort setup (instead of warning) when another config entry targets the same Homey hub or host, with a clear notification to remove the duplicate.
 - **Sensor duplicate unique IDs**: Sensors were created twice for `measure_*` and `meter_*` capabilities (handled in both generic loops). Now skipped in the third loop, with deduplication by unique_id before add.
-- **Zeroconf discovery**: When no address is reachable (e.g. HA in Docker), prefer IPv4 over IPv6; use hostname instead of IPv6 when no IPv4 is available (IPv6 often fails on local networks).
 - **Manifest**: MAC address must be uppercase (9013DA) and keys sorted for hassfest validation.
 
 ## [1.1.9] - 2026-02-18

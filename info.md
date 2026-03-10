@@ -1,17 +1,24 @@
 # Homey Integration for Home Assistant
 
-## What’s New in 1.1.9
+## What's New in 1.2.0
 
 ### ✨ New Features
-- **Capability title naming**: Homey apps can provide human-readable titles for capabilities. By default, entities use the capability ID (e.g., "measure_temperature"). Enable this in integration options to use app-provided titles instead (e.g., "Temperature") for cleaner names. Use `homey.rename_entities_to_titles` to update existing entities after enabling.
-- **Media player shuffle/repeat**: Control shuffle and repeat modes on speakers (Sonos, etc.)
-- **Binary sensor alarms**: Vibration, occupancy, and presence sensors now get proper device classes
+- **Virtual button support**: Homey Virtual Button devices now create button entities
+- **Zeroconf (mDNS) discovery**: Automatic discovery via `_homey._tcp` mDNS regardless of MAC or router DHCP
+- **DHCP discovery**: Automatic discovery via MAC prefix (9013DA); updates host when router reassigns IP
+- **measure_distance**: Ultrasonic/ToF presence sensors now get proper distance sensors with cm unit
 
 ### 🔧 Improvements
-- **Device classification**: Heater, switch, and vacuum device classes now mapped correctly
-- **Capability reporting**: When new capabilities appear on devices, a notification with a prefilled GitHub issue link is shown. Call `homey.test_capability_report` from Developer Tools → Actions to test the report format. Reports include device info, capability type, and suggested platform for unknown capabilities.
+- **Discovery form**: Editable host in confirmation step; default manual host is `homey.local`
+- **Better diagnostics**: Connection failures now include host and exception; warns when using `.local` hostname
+- **Logging**: Rate-limited error logs when Homey is unreachable; reduced log noise across discovery, lights, logic variables, and Socket.IO
 
-For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/v1.1.9/CHANGELOG.md).
+### 🐛 Fixes
+- **Discovery host overwrite**: Zeroconf no longer overwrites your configured host; DHCP still updates for IP reassignment
+- **Duplicate hub detection**: Setup aborts with clear message instead of warning
+- **Sensor duplicates**: Fixed duplicate sensors for `measure_*` and `meter_*` capabilities
+
+For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/v1.2.0/CHANGELOG.md).
 
 ---
 

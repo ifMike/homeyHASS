@@ -1033,13 +1033,25 @@ class HomeyAPI:
                 async with self.session.get(f"{self.host}{endpoint}") as response:
                     if response.status == 200:
                         variables_data = await response.json()
-                        # Handle both array and object responses
-                        if isinstance(variables_data, dict):
-                            self.logic_variables = variables_data
-                        elif isinstance(variables_data, list):
+                        # Handle array, object, or nested responses
+                        if isinstance(variables_data, list):
                             self.logic_variables = {
-                                variable["id"]: variable for variable in variables_data
+                                v["id"]: v for v in variables_data if v.get("id")
                             }
+                        elif isinstance(variables_data, dict):
+                            # Unwrap nested structures (e.g. {"result": {...}} or {"variables": [...]})
+                            inner = variables_data.get("result") or variables_data.get("variables")
+                            if inner is not None:
+                                if isinstance(inner, list):
+                                    self.logic_variables = {
+                                        v.get("id", str(i)): v for i, v in enumerate(inner)
+                                    }
+                                elif isinstance(inner, dict):
+                                    self.logic_variables = inner
+                                else:
+                                    self.logic_variables = {}
+                            else:
+                                self.logic_variables = variables_data
                         else:
                             self.logic_variables = {}
 
@@ -1095,53 +1107,62 @@ class HomeyAPI:
             f"{API_LOGIC_VARIABLES}/{variable_id}",
             f"{API_LOGIC_VARIABLES}/{variable_id}/",
         ]
-        payload = {"variable": {"value": value}}
+        # Try both payload formats - Homey API structure may vary
+        payloads_to_try: list[dict[str, Any]] = [
+            {"value": value},
+            {"variable": {"value": value}},
+        ]
 
-        for endpoint in endpoints_to_try:
-            try:
-                async with self.session.put(
-                    f"{self.host}{endpoint}",
-                    json=payload,
-                ) as response:
-                    if response.status in (200, 204):
-                        _LOGGER.debug(
-                            "Successfully updated logic variable %s via %s",
-                            variable_id,
-                            endpoint,
-                        )
-                        return True
-                    elif response.status == 404:
-                        _LOGGER.debug(
-                            "Logic variable endpoint %s not found, trying next...",
-                            endpoint,
-                        )
-                        continue
-                    elif response.status in (401, 403):
-                        PermissionChecker.check_permission(
-                            response.status, "logic", "write", f"update_logic_variable({variable_id})"
-                        )
-                        continue
-                    else:
-                        error_text = await response.text()
-                        _LOGGER.debug(
-                            "Failed to update logic variable %s via %s (%s): %s - %s",
-                            variable_id,
-                            endpoint,
-                            response.status,
-                            response.reason,
-                            error_text[:200] if error_text else "No error text",
-                        )
-                        continue
-            except Exception as err:
-                _LOGGER.debug(
-                    "Error updating logic variable %s via %s: %s",
-                    variable_id,
-                    endpoint,
-                    err,
-                )
-                continue
+        last_error: str | None = None
+        for payload in payloads_to_try:
+            for endpoint in endpoints_to_try:
+                try:
+                    async with self.session.put(
+                        f"{self.host}{endpoint}",
+                        json=payload,
+                    ) as response:
+                        if response.status in (200, 204):
+                            _LOGGER.debug(
+                                "Successfully updated logic variable %s via %s",
+                                variable_id,
+                                endpoint,
+                            )
+                            return True
+                        elif response.status == 404:
+                            continue
+                        elif response.status in (401, 403):
+                            PermissionChecker.check_permission(
+                                response.status, "logic", "write", f"update_logic_variable({variable_id})"
+                            )
+                            last_error = f"{response.status} {response.reason}"
+                            continue
+                        else:
+                            error_text = await response.text()
+                            last_error = f"{response.status}: {error_text[:150] if error_text else 'No body'}"
+                            _LOGGER.debug(
+                                "Failed to update logic variable %s via %s (%s)",
+                                variable_id,
+                                endpoint,
+                                last_error,
+                            )
+                            continue
+                except Exception as err:
+                    last_error = str(err)
+                    _LOGGER.debug(
+                        "Error updating logic variable %s via %s: %s",
+                        variable_id,
+                        endpoint,
+                        err,
+                    )
+                    continue
 
-        _LOGGER.error("Failed to update logic variable %s from any endpoint", variable_id)
+        _LOGGER.error(
+            "Failed to update logic variable %s from any endpoint (host=%s)%s. "
+            "Ensure API key has homey.logic (Variables) permission.",
+            variable_id,
+            self.host,
+            f": {last_error}" if last_error else "",
+        )
         return False
 
     async def trigger_mood(self, mood_id: str) -> bool:

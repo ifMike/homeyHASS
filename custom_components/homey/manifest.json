@@ -1,18 +1,29 @@
 {
   "domain": "homey",
   "name": "Homey",
-  "codeowners": ["@ifmike"],
+  "codeowners": [
+    "@ifmike"
+  ],
   "config_flow": true,
   "dependencies": [],
   "dhcp": [
-    {"registered_devices": true},
-    {"macaddress": "9013DA*"}
+    {
+      "registered_devices": true
+    },
+    {
+      "macaddress": "9013DA*"
+    }
   ],
   "documentation": "https://github.com/ifMike/homeyHASS",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/ifMike/homeyHASS/issues",
-  "requirements": ["aiohttp>=3.8.0", "python-socketio>=5.0.0"],
-  "version": "1.2.0",
-  "zeroconf": ["_homey._tcp.local."]
+  "requirements": [
+    "aiohttp>=3.8.0",
+    "python-socketio>=5.0.0"
+  ],
+  "version": "1.2.0-dev.1",
+  "zeroconf": [
+    "_homey._tcp.local."
+  ]
 }

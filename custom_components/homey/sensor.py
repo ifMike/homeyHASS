@@ -19,7 +19,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
@@ -504,18 +503,7 @@ async def async_setup_entry(
         seen_ids.add(e.unique_id)
         deduped.append(e)
 
-    # Filter out entities whose unique_id already exists in registry (prevents orphan errors)
-    registry = async_get_entity_registry(hass)
-    filtered = [
-        e for e in deduped
-        if registry.async_get_entity_id("sensor", DOMAIN, e.unique_id) is None
-    ]
-    if len(filtered) < len(deduped):
-        _LOGGER.debug(
-            "Skipped %d sensors (unique_id already in registry)",
-            len(deduped) - len(filtered),
-        )
-    async_add_entities(filtered)
+    async_add_entities(deduped)
 
 
 class HomeySensor(CoordinatorEntity, SensorEntity):

@@ -75,6 +75,21 @@ def _filter_ip_addresses(addresses: list[str]) -> list[str]:
     return [a for a in addresses if _is_ip_address(a)]
 
 
+def _normalize_host_for_compare(host: str) -> str:
+    """Normalize host for comparison (strip protocol, trailing slash, lowercase)."""
+    if not host:
+        return ""
+    h = host.strip().rstrip("/").lower()
+    for prefix in ("https://", "http://"):
+        if h.startswith(prefix):
+            h = h[len(prefix) :]
+            break
+    # Strip IPv6 brackets for comparison (http://[::1] vs ::1)
+    if h.startswith("[") and h.endswith("]"):
+        h = h[1:-1]
+    return h
+
+
 async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
     """Resolve hostname (e.g. Homey-9013DA123456.local) to an IP address.
     Prefer IPv4. Returns None if resolution fails.
@@ -168,6 +183,14 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             host_for_update = f"http://{host_for_update}"
         self._abort_if_unique_id_configured(updates={CONF_HOST: host_for_update})
 
+        # Suppress discovery when an existing entry already points to this host
+        # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
+        discovered_normalized = _normalize_host_for_compare(discovery_info.ip)
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            existing_host = entry.data.get(CONF_HOST, "")
+            if _normalize_host_for_compare(existing_host) == discovered_normalized:
+                return self.async_abort(reason="already_configured")
+
         self._discovered_ip = discovery_info.ip
 
         return await self.async_step_dhcp_confirm()
@@ -231,6 +254,14 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
         # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
         self._abort_if_unique_id_configured()
+
+        # Suppress discovery when an existing entry already points to this host
+        # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
+        discovered_normalized = _normalize_host_for_compare(host)
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            existing_host = entry.data.get(CONF_HOST, "")
+            if _normalize_host_for_compare(existing_host) == discovered_normalized:
+                return self.async_abort(reason="already_configured")
 
         self._discovered_ip = host
 

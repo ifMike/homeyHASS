@@ -21,6 +21,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import (
     CONF_DEVICE_FILTER,
+    UNSUPPORTED_PLATFORMS,
     CONF_POLL_INTERVAL,
     CONF_RECOVERY_COOLDOWN,
     CONF_INVERT_LIGHT_TEMPERATURE,
@@ -90,6 +91,18 @@ def _normalize_host_for_compare(host: str) -> str:
     return h
 
 
+async def _async_host_to_ip(host: str) -> str | None:
+    """Convert host (IP or hostname) to canonical IP for comparison.
+    Returns the IP if already an IP or resolution succeeds, else None.
+    """
+    normalized = _normalize_host_for_compare(host)
+    if not normalized:
+        return None
+    if _is_ip_address(normalized):
+        return normalized
+    return await _async_resolve_hostname_to_ip(normalized)
+
+
 async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
     """Resolve hostname (e.g. Homey-9013DA123456.local) to an IP address.
     Prefer IPv4. Returns None if resolution fails.
@@ -125,6 +138,37 @@ async def _async_find_reachable_host(addresses: list[str]) -> str | None:
         if await _async_check_homey_reachable(addr):
             return addr
     return None
+
+
+async def _async_is_host_already_configured(
+    hass: Any, discovered_host: str, discovered_hostname: str | None = None
+) -> bool:
+    """Return True if an existing config entry points to the same host (by IP or hostname)."""
+    discovered_norm = _normalize_host_for_compare(discovered_host)
+    discovered_ip = await _async_host_to_ip(discovered_host)
+
+    # When discovered host is IPv6, resolve hostname to IPv4 for comparison
+    # (existing entry may have IPv4; IPv4 and IPv6 are different strings for same device)
+    discovered_ips_to_compare: list[str] = []
+    if discovered_ip:
+        discovered_ips_to_compare.append(discovered_ip)
+    if _is_ip_address(discovered_norm) and ":" in discovered_norm and discovered_hostname:
+        resolved_ipv4 = await _async_resolve_hostname_to_ip(discovered_hostname)
+        if resolved_ipv4 and resolved_ipv4 not in discovered_ips_to_compare:
+            discovered_ips_to_compare.append(resolved_ipv4)
+
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        existing_host = entry.data.get(CONF_HOST, "")
+        if not existing_host:
+            continue
+        existing_norm = _normalize_host_for_compare(existing_host)
+        if discovered_norm == existing_norm:
+            return True
+        # Compare by resolved IP (handles homey.local vs 192.168.1.32, IPv4 vs IPv6)
+        existing_ip = await _async_host_to_ip(existing_host)
+        if existing_ip and any(d_ip == existing_ip for d_ip in discovered_ips_to_compare):
+            return True
+    return False
 
 
 async def _async_check_homey_reachable(host: str) -> bool:
@@ -185,11 +229,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Suppress discovery when an existing entry already points to this host
         # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
-        discovered_normalized = _normalize_host_for_compare(discovery_info.ip)
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            existing_host = entry.data.get(CONF_HOST, "")
-            if _normalize_host_for_compare(existing_host) == discovered_normalized:
-                return self.async_abort(reason="already_configured")
+        # Compare by IP resolution so homey.local matches 192.168.1.32
+        if await _async_is_host_already_configured(self.hass, discovery_info.ip):
+            return self.async_abort(reason="already_configured")
 
         self._discovered_ip = discovery_info.ip
 
@@ -257,11 +299,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Suppress discovery when an existing entry already points to this host
         # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
-        discovered_normalized = _normalize_host_for_compare(host)
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            existing_host = entry.data.get(CONF_HOST, "")
-            if _normalize_host_for_compare(existing_host) == discovered_normalized:
-                return self.async_abort(reason="already_configured")
+        # Pass hostname so IPv6 discovery can be matched via resolved IPv4
+        if await _async_is_host_already_configured(self.hass, host, hostname or None):
+            return self.async_abort(reason="already_configured")
 
         self._discovered_ip = host
 
@@ -987,6 +1027,19 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 try:
                     async with session.get(f"{host}{endpoint}") as response:
                         if response.status == 200:
+                            try:
+                                data = await response.json()
+                                platform = (
+                                    (data.get("platform") or data.get("platformVersion") or "")
+                                    .lower()
+                                    .strip()
+                                )
+                                if platform and any(
+                                    unsup in platform for unsup in UNSUPPORTED_PLATFORMS
+                                ):
+                                    return False, None, "unsupported_model"
+                            except Exception:
+                                pass
                             working_endpoint = (
                                 "manager" if "/api/manager" in endpoint else "v1"
                             )

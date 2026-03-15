@@ -25,6 +25,9 @@ DEFAULT_USE_CAPABILITY_TITLES = False
 # GitHub issue URL for reporting new/unknown capabilities
 CAPABILITY_REPORT_ISSUE_URL = "https://github.com/ifMike/homeyHASS/issues/new"
 
+# Homey platforms that are not supported by this integration (e.g. Pro 2019 / smarthomey)
+UNSUPPORTED_PLATFORMS = ("smarthomey",)
+
 # Services
 SERVICE_TEST_CAPABILITY_REPORT = "test_capability_report"
 

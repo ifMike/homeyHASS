@@ -40,7 +40,6 @@
       "cannot_connect": "Unable to connect to Homey. Please check:\n- The IP address is correct\n- Homey is powered on and accessible on your network\n- The API key is valid\n- Homey API is enabled",
       "invalid_auth": "Invalid API key. Please check your API key in Homey Settings → API Keys.",
       "cannot_fetch_devices": "Unable to fetch devices from Homey. The connection was successful but device list could not be retrieved. Proceeding with all devices.",
-      "unsupported_model": "This Homey model (Pro 2019 / smarthomey) is not supported. This integration requires Homey Pro 2026 or later.",
       "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {

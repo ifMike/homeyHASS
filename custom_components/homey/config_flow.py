@@ -21,7 +21,6 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import (
     CONF_DEVICE_FILTER,
-    UNSUPPORTED_PLATFORMS,
     CONF_POLL_INTERVAL,
     CONF_RECOVERY_COOLDOWN,
     CONF_INVERT_LIGHT_TEMPERATURE,
@@ -1027,19 +1026,6 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 try:
                     async with session.get(f"{host}{endpoint}") as response:
                         if response.status == 200:
-                            try:
-                                data = await response.json()
-                                platform = (
-                                    (data.get("platform") or data.get("platformVersion") or "")
-                                    .lower()
-                                    .strip()
-                                )
-                                if platform and any(
-                                    unsup in platform for unsup in UNSUPPORTED_PLATFORMS
-                                ):
-                                    return False, None, "unsupported_model"
-                            except Exception:
-                                pass
                             working_endpoint = (
                                 "manager" if "/api/manager" in endpoint else "v1"
                             )

@@ -1,5 +1,29 @@
 # Homey Integration for Home Assistant
 
+## What's New in 1.2.1
+
+### Critical
+
+- **Sensor unavailability fix**: A registry filter was incorrectly skipping existing sensors, causing them to become orphaned and show Unavailable. Controls (lights, switches, etc.) worked, but sensors did not. This is a critical fix for all users who rely on sensor data—temperature, humidity, presence, distance, and similar capabilities.
+
+### ✨ Added
+- **Discovery card identification**: Shows IPv4 on discovered cards (e.g. "Homey (192.168.1.32)") so multiple Homeys can be distinguished
+- **Setup step descriptions**: Step descriptions explain what to do, required permissions, and Pro 2023+ limitation
+- **Translations**: Added translations for config flow step descriptions
+
+### 🔧 Changed
+- **Discovery host field**: Never show .local hostname or IPv6; resolve to IPv4 when possible. Default manual host changed from homey.local to empty
+- **Error messages**: Full error messages for invalid_auth and cannot_connect with causes and solutions, including Pro 2019 not supported
+
+### 🐛 Fixed
+- **Discovery suppression**: Suppress discovery when an existing config entry points to the same host (fixes "Discovered" Homey showing when manually configured)
+- **IPv6 discovery suppression**: Correctly suppress discovery for already-configured hosts when discovered host is IPv6
+- **Discovery card fallback**: Card now always shows "Homey (IP)" or "Homey (IP unknown)" instead of domain name
+
+For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/v1.2.1/CHANGELOG.md).
+
+---
+
 ## What's New in 1.2.0
 
 ### ✨ New Features

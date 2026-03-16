@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-01-27
+
+### Added
+- **Discovery card identification**: Shows IPv4 on discovered cards (e.g. "Homey (192.168.1.32)") so multiple Homeys can be distinguished. Falls back to "Homey (IP unknown)" when IPv4 cannot be resolved.
+- **Setup step descriptions**: Step descriptions explain what to do, required permissions (Devices, Flows, System read), and Pro 2023+ limitation.
+- **Translations**: Added translations/en.json for config flow to display step descriptions correctly.
+
+### Changed
+- **Discovery host field**: Never show .local hostname or IPv6 in the host field. Resolve to IPv4 when possible; use empty when resolution fails. Default manual host changed from homey.local to empty.
+- **Error messages**: Full error messages for invalid_auth and cannot_connect with causes and solutions, including Pro 2019 not supported. Passed directly since translation keys may not resolve in custom components.
+
+### Fixed
+- **Sensor unavailability**: Removed registry filter that skipped existing sensors, causing them to become orphaned and show Unavailable (controls worked, sensors did not).
+- **Discovery suppression**: Suppress discovery when an existing config entry points to the same host. Fixes "Discovered" Homey showing when manually configured (manual uses homeyId, discovery uses MAC/hostname).
+- **IPv6 discovery suppression**: When discovered host is IPv6, resolve hostname to IPv4 and compare with existing entries so discovery is correctly suppressed for already-configured hosts.
+- **Discovery card fallback**: When title_placeholders was empty, the card showed "homey" (domain). Now always shows "Homey (IP)" or "Homey (IP unknown)".
+
+---
+
 ## [1.2.0] - 2026-03-03
 
 ### Added
@@ -588,4 +607,4 @@ When making changes:
 
 ---
 
-**Last Updated**: 2026-02-18
+**Last Updated**: 2026-01-27

@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Connect to Homey",
-        "description": "**What you need to do:**\nEnter your Homey IP address or hostname (e.g. homey.local or 192.168.1.x) and create an API key in the Homey app.\n\n**Required permissions:**\nCreate a new API key in Homey app → Settings → API Keys. Grant at least: Devices (read), Flows (read), System (read). For real-time updates, also enable System → View System (`homey.system.readonly`).\n\n**Limitations:**\nRequires Homey Pro 2023 or later. Homey Pro 2019 and older do not support API Keys and cannot be used with this integration.",
+        "description": "**What you need to do:**\nEnter your Homey IPv4 address (e.g. 192.168.1.x) and create an API key in the Homey app.\n\n**Required permissions:**\nCreate a new API key in Homey app → Settings → API Keys. Grant at least: Devices (read), Flows (read), System (read). For real-time updates, also enable System → View System (`homey.system.readonly`).\n\n**Limitations:**\nRequires Homey Pro 2023 or later. Homey Pro 2019 and older do not support API Keys and cannot be used with this integration.",
         "data": {
           "host": "Homey IP Address or Hostname",
           "token": "API Key"
@@ -12,7 +12,7 @@
       },
       "dhcp_confirm": {
         "title": "Homey Found",
-        "description": "**What you need to do:**\nVerify or edit the host (use IPv4 if hostname fails), then enter your API key from the Homey app.\n\n**Required permissions:**\nCreate an API key in Homey app → Settings → API Keys. Grant at least: Devices (read), Flows (read), System (read). For real-time updates, also enable System → View System.\n\n**Limitations:**\nRequires Homey Pro 2023 or later. Pro 2019 and older do not support API Keys.",
+        "description": "**What you need to do:**\nVerify or edit the IPv4 address, then enter your API key from the Homey app.\n\n**Required permissions:**\nCreate an API key in Homey app → Settings → API Keys. Grant at least: Devices (read), Flows (read), System (read). For real-time updates, also enable System → View System.\n\n**Limitations:**\nRequires Homey Pro 2023 or later. Pro 2019 and older do not support API Keys.",
         "data": {
           "host": "Homey IP Address or Hostname",
           "token": "API Key"
@@ -81,4 +81,3 @@
     }
   }
 }
-

@@ -40,9 +40,39 @@ from .device_info import get_device_type
 
 _LOGGER = logging.getLogger(__name__)
 
+# Full error messages for discovery/reauth flows (translation keys may not resolve in custom components)
+# Use \n\n for paragraph breaks; markdown **bold** and lists may render if the UI supports it
+CONFIG_FLOW_ERROR_MESSAGES = {
+    "invalid_auth": (
+        "Authentication failed.\n\n"
+        "**Possible causes:**\n"
+        "• Invalid or expired API key\n"
+        "• API key missing required permissions\n"
+        "• Homey Pro 2019 or older (no API Keys – requires Pro 2023+)\n\n"
+        "**Solutions:**\n"
+        "1. Homey app → Settings → API Keys → Create new key\n"
+        "2. Grant: Devices (read), Flows (read), System (read)\n"
+        "3. Copy the key and paste it here\n"
+        "4. Pro 2019 or older is not supported"
+    ),
+    "cannot_connect": (
+        "Unable to connect to Homey.\n\n"
+        "**Possible causes:**\n"
+        "• Wrong IP address or hostname\n"
+        "• Homey powered off or unreachable\n"
+        "• Firewall blocking connections\n"
+        "• Homey Pro 2019 or older (no Local API – requires Pro 2023+)\n\n"
+        "**Solutions:**\n"
+        "1. Verify IP in Homey app or router\n"
+        "2. Ensure same network as Home Assistant\n"
+        "3. Try pinging the IP from your HA host\n"
+        "4. Pro 2019 or older is not supported"
+    ),
+}
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST, default="homey.local"): str,
+        vol.Required(CONF_HOST, default=""): str,
         vol.Required(CONF_TOKEN): str,
     }
 )
@@ -234,6 +264,12 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         self._discovered_ip = discovery_info.ip
 
+        # Show only IPv4 in discovery card (never MAC/IPv6) - format: Homey (IP)
+        display_ip = discovery_info.ip if ":" not in discovery_info.ip else None
+        self.context["title_placeholders"] = {
+            "name": display_ip if display_ip else "IP unknown"
+        }
+
         return await self.async_step_dhcp_confirm()
 
     async def async_step_zeroconf(
@@ -284,12 +320,38 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                     host,
                 )
             else:
-                host = fallback
+                # Cannot resolve - use empty; never show .local hostname (only IPv4)
+                host = ""
                 _LOGGER.debug(
-                    "Zeroconf discovery: No IP addresses and could not resolve %s "
-                    "(user should enter IP in form)",
+                    "Zeroconf discovery: No IP addresses and could not resolve %s - "
+                    "user must enter IPv4 manually",
+                    fallback,
+                )
+
+        # Never show IPv6 or .local - use IPv4 only for form and discovery card
+        if ":" in host and _is_ip_address(host):
+            # host is IPv6 - resolve hostname to IPv4
+            resolved_ipv4 = await _async_resolve_hostname_to_ip(hostname or "homey.local")
+            if resolved_ipv4:
+                host = resolved_ipv4
+                _LOGGER.info(
+                    "Zeroconf discovery: Resolved hostname to IPv4 %s (avoiding IPv6)",
                     host,
                 )
+            else:
+                # Cannot resolve - use empty; never show .local
+                host = ""
+                _LOGGER.debug(
+                    "Zeroconf discovery: Could not resolve %s to IPv4 - user must enter IP",
+                    hostname,
+                )
+        elif ".local" in (host or "").lower():
+            # host is hostname - resolve to IPv4; never show .local
+            resolved_ipv4 = await _async_resolve_hostname_to_ip(host)
+            if resolved_ipv4:
+                host = resolved_ipv4
+            else:
+                host = ""
 
         await self.async_set_unique_id(hostname or host or "homey")
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
@@ -304,6 +366,12 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         self._discovered_ip = host
 
+        # Show only IPv4 in discovery card (never hostname/IPv6/MAC) - format: Homey (IP)
+        display_ip = host if host and ":" not in host and _is_ip_address(host) else None
+        self.context["title_placeholders"] = {
+            "name": display_ip if display_ip else "IP unknown"
+        }
+
         return await self.async_step_dhcp_confirm()
 
     async def async_step_dhcp_confirm(
@@ -315,7 +383,7 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         wrong address (e.g. IPv6 or different subnet).
         """
         errors: dict[str, str] = {}
-        discovered_host = getattr(self, "_discovered_ip", "homey.local")
+        discovered_host = getattr(self, "_discovered_ip", "") or ""
 
         if user_input is not None:
             token = user_input[CONF_TOKEN].strip()
@@ -338,7 +406,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                     },
                 )
             if error_key:
-                errors["base"] = error_key
+                errors["base"] = CONFIG_FLOW_ERROR_MESSAGES.get(
+                    error_key, error_key
+                )
                 # Preserve user's host when re-showing form after error
                 discovered_host = user_input.get(CONF_HOST, discovered_host).strip()
 
@@ -384,7 +454,9 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 await self.hass.config_entries.async_reload(entry.entry_id)
                 return self.async_abort(reason="reauth_successful")
             if error_key:
-                errors["base"] = error_key
+                errors["base"] = CONFIG_FLOW_ERROR_MESSAGES.get(
+                    error_key, error_key
+                )
 
         schema = vol.Schema(
             {

@@ -275,8 +275,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Enable multi-homey mode only when more than one hub is configured
     entries = hass.config_entries.async_entries(DOMAIN)
-    if len(entries) > 1 and not hass.data[DOMAIN].get("multi_homey_enabled"):
-        await _async_enable_multi_homey(hass)
+    multi_hub = len(entries) > 1
+
+    if multi_hub:
+        hass.data[DOMAIN]["multi_homey_enabled"] = True
+        # Only run migration + notifications if not already done (persisted in entry data)
+        migration_already_done = any(e.data.get("multi_homey_enabled") for e in entries)
+        if not migration_already_done:
+            await _async_enable_multi_homey(hass)
     
     # Create coordinator (pass zones so it can update device registry)
     poll_interval = entry.options.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL)

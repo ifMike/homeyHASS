@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import ssl
 from typing import Any
 
@@ -120,16 +121,46 @@ def _normalize_host_for_compare(host: str) -> str:
     return h
 
 
+def _parse_host_port(host: str) -> tuple[str, int | None]:
+    """Split host into (host_part, port). Handles IPv4, IPv6 [::1]:port, and hostname:port."""
+    h = _normalize_host_for_compare(host)
+    if not h:
+        return "", None
+    # IPv6: [::1]:4859 or [::1]
+    if h.startswith("["):
+        bracket_end = h.find("]")
+        if bracket_end >= 0:
+            host_part = h[1:bracket_end]
+            rest = h[bracket_end + 1 :].lstrip(":")
+            if rest.isdigit():
+                return host_part, int(rest)
+            return host_part, None
+    # IPv4 or hostname: port
+    if ":" in h:
+        host_part, _, port_part = h.rpartition(":")
+        if port_part.isdigit():
+            return host_part, int(port_part)
+    return h, None
+
+
+def _is_mac_format(uid: str) -> bool:
+    """Return True if uid looks like a MAC address (XX:XX:XX:XX:XX:XX)."""
+    if not uid or len(uid) != 17:
+        return False
+    return bool(re.match(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", uid.lower()))
+
+
 async def _async_host_to_ip(host: str) -> str | None:
-    """Convert host (IP or hostname) to canonical IP for comparison.
+    """Convert host (IP or hostname, optionally with :port) to canonical IP for comparison.
     Returns the IP if already an IP or resolution succeeds, else None.
+    Strips port before resolution (host:port -> resolve host only).
     """
-    normalized = _normalize_host_for_compare(host)
-    if not normalized:
+    host_part, _ = _parse_host_port(host)
+    if not host_part:
         return None
-    if _is_ip_address(normalized):
-        return normalized
-    return await _async_resolve_hostname_to_ip(normalized)
+    if _is_ip_address(host_part):
+        return host_part
+    return await _async_resolve_hostname_to_ip(host_part)
 
 
 async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
@@ -170,18 +201,38 @@ async def _async_find_reachable_host(addresses: list[str]) -> str | None:
 
 
 async def _async_is_host_already_configured(
-    hass: Any, discovered_host: str, discovered_hostname: str | None = None
+    hass: Any,
+    discovered_host: str,
+    discovered_hostname: str | None = None,
+    *,
+    discovered_mac: str | None = None,
+    discovered_port: int | None = None,
 ) -> bool:
-    """Return True if an existing config entry points to the same host (by IP or hostname)."""
-    discovered_norm = _normalize_host_for_compare(discovered_host)
+    """Return True if an existing config entry points to the same host.
+
+    Compares by: MAC (when available), host+port (for SHS same-IP different ports),
+    or resolved IP when port is not relevant.
+    """
+    # MAC comparison: when discovery has MAC, check if any entry was added via DHCP (unique_id=MAC)
+    if discovered_mac:
+        try:
+            discovered_mac_norm = dr.format_mac(discovered_mac)
+            for entry in hass.config_entries.async_entries(DOMAIN):
+                uid = getattr(entry, "unique_id", None)
+                if uid and _is_mac_format(uid) and dr.format_mac(uid) == discovered_mac_norm:
+                    return True
+        except (TypeError, ValueError):
+            pass
+
+    discovered_host_part, discovered_port_parsed = _parse_host_port(discovered_host)
+    port = discovered_port if discovered_port is not None else discovered_port_parsed
     discovered_ip = await _async_host_to_ip(discovered_host)
 
     # When discovered host is IPv6, resolve hostname to IPv4 for comparison
-    # (existing entry may have IPv4; IPv4 and IPv6 are different strings for same device)
     discovered_ips_to_compare: list[str] = []
     if discovered_ip:
         discovered_ips_to_compare.append(discovered_ip)
-    if _is_ip_address(discovered_norm) and ":" in discovered_norm and discovered_hostname:
+    if discovered_host_part and _is_ip_address(discovered_host_part) and ":" in discovered_host_part and discovered_hostname:
         resolved_ipv4 = await _async_resolve_hostname_to_ip(discovered_hostname)
         if resolved_ipv4 and resolved_ipv4 not in discovered_ips_to_compare:
             discovered_ips_to_compare.append(resolved_ipv4)
@@ -190,13 +241,24 @@ async def _async_is_host_already_configured(
         existing_host = entry.data.get(CONF_HOST, "")
         if not existing_host:
             continue
+        existing_host_part, existing_port = _parse_host_port(existing_host)
         existing_norm = _normalize_host_for_compare(existing_host)
+        discovered_norm = _normalize_host_for_compare(discovered_host)
+
+        # Exact string match
         if discovered_norm == existing_norm:
             return True
-        # Compare by resolved IP (handles homey.local vs 192.168.1.32, IPv4 vs IPv6)
+
+        # Compare by resolved IP
         existing_ip = await _async_host_to_ip(existing_host)
-        if existing_ip and any(d_ip == existing_ip for d_ip in discovered_ips_to_compare):
-            return True
+        if not existing_ip or not any(d_ip == existing_ip for d_ip in discovered_ips_to_compare):
+            continue
+
+        # IPs match - check port when both have one (SHS: same IP, different ports = different instances)
+        if port is not None and existing_port is not None:
+            if port != existing_port:
+                continue  # Same IP but different ports - different Homey instances
+        return True
     return False
 
 
@@ -258,8 +320,12 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Suppress discovery when an existing entry already points to this host
         # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
-        # Compare by IP resolution so homey.local matches 192.168.1.32
-        if await _async_is_host_already_configured(self.hass, discovery_info.ip):
+        # Compare by MAC, IP resolution, and host+port (for SHS same-IP different ports)
+        if await _async_is_host_already_configured(
+            self.hass,
+            discovery_info.ip,
+            discovered_mac=macaddress,
+        ):
             return self.async_abort(reason="already_configured")
 
         self._discovered_ip = discovery_info.ip
@@ -360,8 +426,17 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Suppress discovery when an existing entry already points to this host
         # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
-        # Pass hostname so IPv6 discovery can be matched via resolved IPv4
-        if await _async_is_host_already_configured(self.hass, host, hostname or None):
+        # Pass hostname, MAC (if in mDNS properties), and port for SHS same-IP different ports
+        discovery_port = getattr(discovery_info, "port", None)
+        discovery_props = getattr(discovery_info, "properties", None) or {}
+        discovery_mac = discovery_props.get("macaddress") or discovery_props.get("mac")
+        if await _async_is_host_already_configured(
+            self.hass,
+            host,
+            hostname or None,
+            discovered_mac=discovery_mac,
+            discovered_port=discovery_port,
+        ):
             return self.async_abort(reason="already_configured")
 
         self._discovered_ip = host

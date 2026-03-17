@@ -143,6 +143,39 @@ def _parse_host_port(host: str) -> tuple[str, int | None]:
     return h, None
 
 
+def _log_discovery_info(
+    source: str,
+    discovery_info: Any,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Log all available discovery info for debugging model/device identification.
+
+    Homey 2019 has no local API but may still appear in discovery (DHCP/Zeroconf).
+    Logging helps identify differentiators (hostname, MAC, mDNS properties) to filter.
+    """
+    attrs: dict[str, Any] = {}
+    try:
+        for attr in dir(discovery_info):
+            if attr.startswith("_"):
+                continue
+            try:
+                val = getattr(discovery_info, attr)
+                if callable(val):
+                    continue
+                attrs[attr] = val
+            except Exception:
+                attrs[attr] = "<error reading>"
+    except Exception as err:
+        attrs["_error"] = str(err)
+    if extra:
+        attrs["_extra"] = extra
+    _LOGGER.info(
+        "[discovery] %s: %s",
+        source,
+        attrs,
+    )
+
+
 def _is_mac_format(uid: str) -> bool:
     """Return True if uid looks like a MAC address (XX:XX:XX:XX:XX:XX)."""
     if not uid or len(uid) != 17:
@@ -296,6 +329,8 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         """Handle DHCP discovery."""
         macaddress = dr.format_mac(discovery_info.macaddress)
 
+        _log_discovery_info("DHCP", discovery_info)
+
         _LOGGER.info(
             "DHCP discovery: Homey detected at %s (MAC %s)",
             discovery_info.ip,
@@ -304,7 +339,15 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Check if the device responds as Homey (reachable, returns 200 or 401).
         # If unreachable (e.g. HA in Docker, firewall), still show form - user can try.
-        if not await _async_check_homey_reachable(discovery_info.ip):
+        reachable = await _async_check_homey_reachable(discovery_info.ip)
+        _LOGGER.info(
+            "[discovery] DHCP: API reachable=%s (ip=%s, hostname=%s); "
+            "Homey 2019 has no local API - if reachable=False, device may be unsupported",
+            reachable,
+            discovery_info.ip,
+            getattr(discovery_info, "hostname", None),
+        )
+        if not reachable:
             _LOGGER.warning(
                 "DHCP discovery: Could not reach Homey at %s - showing form anyway "
                 "(check network/firewall if setup fails)",
@@ -355,6 +398,16 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         # Only use IP addresses - never .local hostnames (unstable, can resolve to wrong interface)
         addresses = _filter_ip_addresses(raw_addresses)
 
+        _log_discovery_info(
+            "Zeroconf",
+            discovery_info,
+            extra={
+                "hostname": hostname,
+                "addresses_filtered": addresses,
+                "raw_addresses": raw_addresses,
+            },
+        )
+
         _LOGGER.debug(
             "Zeroconf discovery: Homey detected at %s (hostname: %s)",
             ", ".join(addresses) if addresses else "no IPs",
@@ -363,6 +416,13 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
         # Try all addresses (IPv4 first) and use first reachable - always prefer IP over hostname
         reachable = await _async_find_reachable_host(addresses)
+        _LOGGER.info(
+            "[discovery] Zeroconf: API reachable=%s (host=%s, hostname=%s); "
+            "Homey 2019 has no local API - if reachable=False, device may be unsupported",
+            reachable is not None,
+            reachable,
+            hostname,
+        )
         if reachable:
             host = reachable
             _LOGGER.info("Zeroconf discovery: Homey found at %s", host)

@@ -41,6 +41,16 @@ from .device_info import get_device_type
 
 _LOGGER = logging.getLogger(__name__)
 
+# Homey models with Local API (Pro 2023+, Pro mini, Pro 2026, SHS)
+# Older models (2019 and earlier) do not broadcast 'model' in mDNS or use unsupported IDs
+HOMEY_MODELS_SUPPORTED = frozenset({"homey5q", "homey6q", "homey7q", "shs", "desktop"})
+HOMEY_MODELS_UNSUPPORTED = frozenset({
+    "homey1s", "homey1d", "homey1q",  # 2016
+    "homey2s", "homey2d", "homey2q",  # 2018
+    "homey3s", "homey3d", "homey4d",  # 2019
+    "cloud",
+})
+
 # Full error messages for discovery/reauth flows (translation keys may not resolve in custom components)
 # Use \n\n for paragraph breaks; markdown **bold** and lists may render if the UI supports it
 CONFIG_FLOW_ERROR_MESSAGES = {
@@ -141,6 +151,27 @@ def _parse_host_port(host: str) -> tuple[str, int | None]:
         if port_part.isdigit():
             return host_part, int(port_part)
     return h, None
+
+
+def _is_homey_model_supported(properties: dict[str, Any] | None) -> bool:
+    """Return True if the discovered Homey model supports the Local API.
+
+    - No 'model' in mDNS properties: older firmware (2019 and earlier) - unsupported
+    - Model in HOMEY_MODELS_UNSUPPORTED: explicit blacklist
+    - Model in HOMEY_MODELS_SUPPORTED: allow
+    - Unknown model: allow (future devices we don't know yet)
+    """
+    if not properties:
+        return False
+    model = properties.get("model")
+    if model is None or model == "":
+        return False  # Older firmware doesn't broadcast model
+    model_lower = str(model).lower().strip()
+    if model_lower in HOMEY_MODELS_UNSUPPORTED:
+        return False
+    if model_lower in HOMEY_MODELS_SUPPORTED:
+        return True
+    return True  # Unknown model - allow for future devices
 
 
 def _log_discovery_info(
@@ -407,6 +438,17 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 "raw_addresses": raw_addresses,
             },
         )
+
+        # Suppress discovery for unsupported models (2019 and earlier have no Local API)
+        discovery_props = getattr(discovery_info, "properties", None) or {}
+        if not _is_homey_model_supported(discovery_props):
+            model = discovery_props.get("model", "<missing>")
+            _LOGGER.info(
+                "[discovery] Zeroconf: suppressing unsupported model (model=%s, name=%s)",
+                model,
+                discovery_props.get("name", "?"),
+            )
+            return self.async_abort(reason="unsupported_model")
 
         _LOGGER.debug(
             "Zeroconf discovery: Homey detected at %s (hostname: %s)",

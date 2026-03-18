@@ -45,7 +45,8 @@
     },
     "abort": {
       "already_configured": "This Homey hub is already configured.",
-      "reauth_successful": "Reauthentication successful."
+      "reauth_successful": "Reauthentication successful.",
+      "unsupported_model": "This Homey model does not support the Local API. Requires Pro 2023 or later."
     }
   },
   "options": {

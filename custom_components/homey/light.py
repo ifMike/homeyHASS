@@ -326,7 +326,10 @@ class HomeyLight(CoordinatorEntity, LightEntity):
         capabilities = device_data.get("capabilitiesObj", {})
         dim_value = capabilities.get("dim", {}).get("value", 0)
         if dim_value is not None:
-            return int(dim_value * 255)
+            try:
+                return int(float(dim_value) * 255)
+            except (ValueError, TypeError):
+                return None
         return None
 
     @property

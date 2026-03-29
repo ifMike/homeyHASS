@@ -143,7 +143,12 @@ CAPABILITY_TO_SENSOR = {
         "unit": "ppm",
     },
     "measure_soil_moisture": {
-        "device_class": None,  # Generic sensor
+        "device_class": SensorDeviceClass.MOISTURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": "%",
+    },
+    "measure_moisture": {
+        "device_class": SensorDeviceClass.MOISTURE,
         "state_class": SensorStateClass.MEASUREMENT,
         "unit": "%",
     },
@@ -823,9 +828,15 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
             value_float = float(value)
             
             # Check if this is a percentage sensor that might be normalized
-            # measure_humidity, measure_soil_moisture, and measure_battery might return normalized 0-1
+            # measure_humidity, measure_soil_moisture, measure_moisture,
+            # and measure_battery might return normalized 0-1
             base_capability = self._capability_id.split(".")[0] if "." in self._capability_id else self._capability_id
-            if base_capability in ("measure_humidity", "measure_soil_moisture", "measure_battery"):
+            if base_capability in (
+                "measure_humidity",
+                "measure_soil_moisture",
+                "measure_moisture",
+                "measure_battery",
+            ):
                 # Check capability max to determine if normalized
                 cap_max = capability.get("max", 100)
                 if cap_max <= 1.0:

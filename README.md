@@ -8,14 +8,6 @@
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
-## What's New in 1.2.3
-
-- Added support for `lightScenes.light` / `lightScenes` as native light scene effects (`effect` / `effect_list`)
-- Fixed light-vs-switch classification for devices exposing `onoff` + `lightScenes.*`
-- Fixed numeric capability parsing when Homey reports `"auto"` values
-- Improved moisture capability handling for proper moisture device class mapping
-
-
 ---
 
 ## Table of Contents

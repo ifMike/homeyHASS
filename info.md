@@ -8,7 +8,7 @@
 
 ### Fixed
 - **Light classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights (not switches).
-- **Numeric capability parsing**: Fixed a crash when Homey returns `"auto"` for numeric capability values.
+- **Numeric capability parsing (Philips Hue)**: Fixed a crash when Homey returns `"auto"` for numeric capability values (notably with Philips Hue payloads).
 - **Moisture capabilities**: Improved moisture capability handling so moisture-related sensors use the moisture device class.
 
 For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).

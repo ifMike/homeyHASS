@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Light vs switch classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights instead of switches.
-- **Numeric capability parsing**: Fixed crash when Homey returns `"auto"` for numeric capability values.
+- **Numeric capability parsing (Philips Hue)**: Fixed crash when Homey returns `"auto"` for numeric capability values (seen with Philips Hue capability payloads).
 - **Moisture sensors**: Improved moisture capability handling so moisture-related capabilities map to the proper moisture device class.
 
 ## [1.2.2] - 2026-03-18

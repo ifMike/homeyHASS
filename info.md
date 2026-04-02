@@ -1,15 +1,15 @@
 # Homey Integration for Home Assistant
 
-## What's New in 1.2.2
+## What's New in 1.2.3
 
 ### Added
-- **Model filtering**: Homey 2019 and older no longer appear in discovery. Zeroconf now filters by mDNS `model` property—unsupported models (homey3d, homey4d, etc.) are suppressed. Pro 2023, Pro mini, Pro 2026, and SHS are supported.
-- **Discovery logging**: Search logs for `[discovery]` to see full discovery info (hostname, MAC, model, API reachability) for troubleshooting.
+- **Light scenes/effects**: Added support for `lightScenes.light` (and `lightScenes`) on light devices. These scenes are now exposed through Home Assistant light `effect` / `effect_list`.
+- **Capability mapping**: Added explicit light mapping for `lightScenes` and `lightScenes.light` to improve device classification.
 
 ### Fixed
-- **Discovery suppression**: Improved matching so the "new" Homey card no longer appears when your hub is already configured. Compares by host+port, MAC, and resolved IP.
-- **Multi-hub migration**: Migration notifications only appear once, not on every restart.
-- **HACS**: Removed deprecated `beta` key (fixes validation).
+- **Light classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights (not switches).
+- **Numeric capability parsing**: Fixed a crash when Homey returns `"auto"` for numeric capability values.
+- **Moisture capabilities**: Improved moisture capability handling so moisture-related sensors use the moisture device class.
 
 For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).
 

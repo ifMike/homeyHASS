@@ -112,6 +112,10 @@ async def async_setup_entry(
             "dim" in capabilities
             or "light_hue" in capabilities
             or "light_temperature" in capabilities
+            or any(
+                cap_id == "lightScenes" or cap_id.startswith("lightScenes.")
+                for cap_id in capabilities
+            )
         )
         # Skip if this device should be a fan
         has_fan_capabilities = "fan_speed" in capabilities

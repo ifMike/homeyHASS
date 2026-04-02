@@ -4,9 +4,16 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 1.2.2 | **Last Updated**: 2026-03-19 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.3 | **Last Updated**: 2026-04-02 | [Changelog](CHANGELOG.md)
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
+
+## What's New in 1.2.3
+
+- Added support for `lightScenes.light` / `lightScenes` as native light scene effects (`effect` / `effect_list`)
+- Fixed light-vs-switch classification for devices exposing `onoff` + `lightScenes.*`
+- Fixed numeric capability parsing when Homey reports `"auto"` values
+- Improved moisture capability handling for proper moisture device class mapping
 
 
 ---

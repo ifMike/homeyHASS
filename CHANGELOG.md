@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.3] - 2026-04-02
+
+### Added
+- **Light scene capability support**: Added support for `lightScenes.light` (and `lightScenes`) on lights. Devices exposing this capability are now classified as lights and can use Home Assistant light `effect` / `effect_list` for scene selection.
+- **Capability mapping**: Added `lightScenes` and `lightScenes.light` to platform capability mapping to improve automatic classification and capability reporting context.
+
+### Fixed
+- **Light vs switch classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights instead of switches.
+- **Numeric capability parsing**: Fixed crash when Homey returns `"auto"` for numeric capability values.
+- **Moisture sensors**: Improved moisture capability handling so moisture-related capabilities map to the proper moisture device class.
+
 ## [1.2.2] - 2026-03-18
 
 ### Added
@@ -623,4 +634,4 @@ When making changes:
 
 ---
 
-**Last Updated**: 2026-03-18
+**Last Updated**: 2026-04-02

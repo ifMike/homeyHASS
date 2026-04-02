@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP_KELVIN,
+    ATTR_EFFECT,
     ATTR_HS_COLOR,
     ColorMode,
     LightEntity,
@@ -81,6 +82,10 @@ async def async_setup_entry(
         has_hue = "light_hue" in capabilities
         has_saturation = "light_saturation" in capabilities
         has_temp = "light_temperature" in capabilities
+        has_scenes = any(
+            cap_id == "lightScenes" or cap_id.startswith("lightScenes.")
+            for cap_id in capabilities
+        )
         
         # Device-specific detection: Some devices are known to be lights even if capabilities aren't fully exposed
         is_known_light_device = False
@@ -134,7 +139,7 @@ async def async_setup_entry(
         # IMPORTANT: Devices with class "socket" but having dim/color capabilities should be lights, not switches
         # The switch platform will skip them if has_light_capabilities is True
         is_light = (
-            (has_onoff and (has_dim or has_hue or has_temp)) 
+            (has_onoff and (has_dim or has_hue or has_temp or has_scenes))
             or is_known_light_device 
             or is_generic_dimmable
             or is_devicegroups_light
@@ -195,6 +200,14 @@ class HomeyLight(CoordinatorEntity, LightEntity):
         has_saturation = "light_saturation" in capabilities
         has_hs = has_hue and has_saturation
         has_temp = "light_temperature" in capabilities
+        self._scene_capability = next(
+            (
+                cap_id
+                for cap_id in ("lightScenes.light", "lightScenes")
+                if cap_id in capabilities
+            ),
+            None,
+        )
         has_light_mode = "light_mode" in capabilities
         self._has_light_mode = has_light_mode
         
@@ -396,6 +409,35 @@ class HomeyLight(CoordinatorEntity, LightEntity):
                 return int(temp)
         return None
 
+    @property
+    def effect(self) -> str | None:
+        """Return the active light scene/effect, if exposed by Homey."""
+        if not self._scene_capability:
+            return None
+        device_data = self.coordinator.data.get(self._device_id, self._device)
+        capabilities = device_data.get("capabilitiesObj", {})
+        value = capabilities.get(self._scene_capability, {}).get("value")
+        return str(value) if value is not None else None
+
+    @property
+    def effect_list(self) -> list[str] | None:
+        """Return available light scenes/effects from Homey capability options."""
+        if not self._scene_capability:
+            return None
+        device_data = self.coordinator.data.get(self._device_id, self._device)
+        capabilities = device_data.get("capabilitiesObj", {})
+        cap_data = capabilities.get(self._scene_capability, {})
+        options = cap_data.get("values") or cap_data.get("options")
+        if not isinstance(options, list):
+            return None
+        if options and isinstance(options[0], dict):
+            return [
+                str(opt.get("id", opt.get("title")))
+                for opt in options
+                if opt.get("id") is not None or opt.get("title") is not None
+            ]
+        return [str(opt) for opt in options]
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
         _LOGGER.debug("Turning on light %s (%s) with args: %s", self._attr_name, self._device_id, list(kwargs.keys()))
@@ -472,6 +514,11 @@ class HomeyLight(CoordinatorEntity, LightEntity):
             except (ValueError, TypeError):
                 _LOGGER.warning("Invalid color temperature value: %s", kelvin)
                 # Skip temperature setting if invalid
+
+        if ATTR_EFFECT in kwargs and self._scene_capability:
+            effect = kwargs[ATTR_EFFECT]
+            if effect is not None:
+                capabilities_to_set[self._scene_capability] = str(effect)
         
         # If color temp is being set, remove color (HS) capabilities as they're mutually exclusive
         if "light_temperature" in capabilities_to_set:

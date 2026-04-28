@@ -1,15 +1,11 @@
 # Homey Integration for Home Assistant
 
-## What's New in 1.2.3
-
-### Added
-- **Light scenes/effects**: Added support for `lightScenes.light` (and `lightScenes`) on light devices. These scenes are now exposed through Home Assistant light `effect` / `effect_list`.
-- **Capability mapping**: Added explicit light mapping for `lightScenes` and `lightScenes.light` to improve device classification.
+## What's New in 1.2.4
 
 ### Fixed
-- **Light classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights (not switches).
-- **Numeric capability parsing (Philips Hue)**: Fixed a crash when Homey returns `"auto"` for numeric capability values (notably with Philips Hue payloads).
-- **Moisture capabilities**: Improved moisture capability handling so moisture-related sensors use the moisture device class.
+- **Homey Energy Dongle legacy gas/water compatibility**: Added backward compatibility for legacy `sgas*` / `swater*` capability names by treating them as cumulative gas/water meters.
+- **Energy metadata for legacy entities**: Legacy gas/water entities now use `total_increasing` with `m³` units for correct utility tracking behavior.
+- **Legacy label clarity**: Improved naming for legacy gas/water entities to make them easier to identify in Home Assistant.
 
 For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).
 

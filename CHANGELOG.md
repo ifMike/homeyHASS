@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-04-28
+
+### Fixed
+- **Homey Energy Dongle legacy gas/water compatibility**: Added backward compatibility for legacy `sgas*` / `swater*` capability names by treating them as cumulative gas/water meters with `TOTAL_INCREASING` state class and `m³` units. Improved naming of these legacy entities for clearer labels.
+
 ## [1.2.3] - 2026-04-02
 
 ### Added
@@ -634,4 +639,4 @@ When making changes:
 
 ---
 
-**Last Updated**: 2026-04-02
+**Last Updated**: 2026-04-28

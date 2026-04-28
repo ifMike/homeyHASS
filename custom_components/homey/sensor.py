@@ -553,6 +553,14 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
                     "state_class": SensorStateClass.TOTAL_INCREASING,  # Cumulative energy
                     "unit": UnitOfEnergy.KILO_WATT_HOUR,
                 }
+            # Backward compatibility for legacy Homey gas/water capability names
+            # (e.g., sgas_gas_meter, sgas_m3_this_day, swater_m3_this_day)
+            elif capability_id.startswith("sgas") or capability_id.startswith("swater"):
+                sensor_config = {
+                    "device_class": None,
+                    "state_class": SensorStateClass.TOTAL_INCREASING,
+                    "unit": "m³",
+                }
             else:
                 sensor_config = {
                     "device_class": None,
@@ -580,6 +588,12 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
             # Special handling: meter_power should be labeled as "Energy", not "Power"
             if capability_id == "meter_power":
                 display_name = "Energy"
+            elif capability_id.startswith("sgas"):
+                display_name = capability_id.replace("sgas_", "").replace("_", " ").title()
+                display_name = f"Gas {display_name}".strip()
+            elif capability_id.startswith("swater"):
+                display_name = capability_id.replace("swater_", "").replace("_", " ").title()
+                display_name = f"Water {display_name}".strip()
             else:
                 display_name = capability_id.replace("measure_", "").replace("meter_", "").replace("_", " ").title()
             self._attr_name = f"{device.get('name', 'Unknown')} {display_name}"

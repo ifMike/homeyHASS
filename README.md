@@ -4,10 +4,9 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 1.2.1 | **Last Updated**: 2026-01-27 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.4 | **Last Updated**: 2026-04-28 | [Changelog](CHANGELOG.md)
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
-
 
 ---
 

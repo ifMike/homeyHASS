@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-04-28
+
+### Fixed
+- **Homey Energy Dongle legacy gas/water compatibility**: Added backward compatibility for legacy `sgas*` / `swater*` capability names by treating them as cumulative gas/water meters with `TOTAL_INCREASING` state class and `m³` units. Improved naming of these legacy entities for clearer labels.
+
+## [1.2.3] - 2026-04-02
+
+### Added
+- **Light scene capability support**: Added support for `lightScenes.light` (and `lightScenes`) on lights. Devices exposing this capability are now classified as lights and can use Home Assistant light `effect` / `effect_list` for scene selection.
+- **Capability mapping**: Added `lightScenes` and `lightScenes.light` to platform capability mapping to improve automatic classification and capability reporting context.
+
+### Fixed
+- **Light vs switch classification**: Devices with `onoff` + `lightScenes.*` are now treated as lights instead of switches.
+- **Numeric capability parsing (Philips Hue)**: Fixed crash when Homey returns `"auto"` for numeric capability values (seen with Philips Hue capability payloads).
+- **Moisture sensors**: Improved moisture capability handling so moisture-related capabilities map to the proper moisture device class.
+
+## [1.2.2] - 2026-03-18
+
+### Added
+- **Discovery logging**: Logs all discovery info (DHCP/Zeroconf) for debugging. Search logs for `[discovery]` to find entries. Helps identify model and troubleshoot discovery issues.
+- **Model filtering**: Homey 2019 and older no longer appear in Zeroconf discovery. Filter by mDNS `model` property: missing model or known unsupported IDs (homey3d, homey4d, homey2s, etc.) are suppressed. Supported: homey5q (Pro 2023), homey6q (Pro mini), homey7q (Pro 2026), SHS. Unknown models are still shown for future compatibility.
+
+### Fixed
+- **Discovery suppression**: Improved matching to avoid "new" Homey when already configured. Now compares by host+port (for SHS same-IP different ports), MAC address (when available from DHCP or Zeroconf properties), and resolved IP. Fixes duplicate discovery cards for users with multiple interfaces or same subnet.
+- **Multi-hub migration**: Migration notifications only appear once, not on every restart. Added check for persisted `multi_homey_enabled` in config entries.
+- **HACS**: Removed deprecated `beta` key from `hacs.json` (fixes CI validation).
+
+### Changed
+- **Discovery logging**: Zeroconf and DHCP discovery now log API reachability and full discovery properties for easier troubleshooting.
+
+---
+
 ## [1.2.1] - 2026-01-27
 
 ### Added
@@ -607,4 +639,4 @@ When making changes:
 
 ---
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-04-28

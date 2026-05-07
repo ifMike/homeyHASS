@@ -135,8 +135,10 @@ class HomeyFan(CoordinatorEntity, FanEntity):
         capabilities = device_data.get("capabilitiesObj", {})
         speed = capabilities.get("fan_speed", {}).get("value")
         if speed is not None:
-            # Convert speed (0-1) to percentage (0-100)
-            return int(speed * 100)
+            try:
+                return int(float(speed) * 100)
+            except (ValueError, TypeError):
+                return None
         return None
 
     async def async_turn_on(

@@ -52,6 +52,8 @@ CAPABILITY_TO_PLATFORM = {
     "light_hue": "light",
     "light_saturation": "light",
     "light_temperature": "light",
+    "lightScenes": "light",
+    "lightScenes.light": "light",
     "windowcoverings_state": "cover",
     "windowcoverings_tilt_up": "cover",
     "windowcoverings_tilt_down": "cover",

@@ -39,6 +39,7 @@ This document lists the capabilities and device types supported by the Homey int
 - `light_hue` - Color hue control (0-360°)
 - `light_saturation` - Color saturation control (0-100%)
 - `light_temperature` - Color temperature control (Kelvin)
+- `lightScenes.light` - Light scene/effect selection (when provided by the driver)
 
 **Color Modes**
 - `onoff` - Simple on/off
@@ -47,6 +48,8 @@ This document lists the capabilities and device types supported by the Homey int
 - `color_temp` - Color temperature (warm/cool white), Kelvin scale (2000K-6500K)
 
 HS color and color temperature modes are mutually exclusive. If both are available, HS is preferred.
+
+If a light exposes `lightScenes.light`, it can also be controlled through the light `effect` field.
 
 **Note**: Devices with dimming or color capabilities are created as lights, not switches.
 

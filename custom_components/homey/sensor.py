@@ -34,6 +34,11 @@ from .device_info import build_entity_unique_id, get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
+# Keep compatibility with older Home Assistant versions where these
+# device classes may not be available yet.
+GAS_DEVICE_CLASS = getattr(SensorDeviceClass, "GAS", None)
+WATER_DEVICE_CLASS = getattr(SensorDeviceClass, "WATER", None)
+
 # Mapping of Homey capabilities to HA sensor attributes
 CAPABILITY_TO_SENSOR = {
     "measure_temperature": {
@@ -170,12 +175,12 @@ CAPABILITY_TO_SENSOR = {
         "unit": UnitOfEnergy.KILO_WATT_HOUR,
     },
     "meter_water": {
-        "device_class": None,  # Generic sensor - water meter
+        "device_class": WATER_DEVICE_CLASS,
         "state_class": SensorStateClass.TOTAL_INCREASING,  # Cumulative water consumption
         "unit": "m³",  # Cubic meters
     },
     "meter_gas": {
-        "device_class": None,  # Generic sensor - gas meter
+        "device_class": GAS_DEVICE_CLASS,
         "state_class": SensorStateClass.TOTAL_INCREASING,  # Cumulative gas consumption
         "unit": "m³",  # Cubic meters
     },
@@ -556,8 +561,9 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
             # Backward compatibility for legacy Homey gas/water capability names
             # (e.g., sgas_gas_meter, sgas_m3_this_day, swater_m3_this_day)
             elif capability_id.startswith("sgas") or capability_id.startswith("swater"):
+                legacy_device_class = GAS_DEVICE_CLASS if capability_id.startswith("sgas") else WATER_DEVICE_CLASS
                 sensor_config = {
-                    "device_class": None,
+                    "device_class": legacy_device_class,
                     "state_class": SensorStateClass.TOTAL_INCREASING,
                     "unit": "m³",
                 }

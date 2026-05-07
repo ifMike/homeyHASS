@@ -1,6 +1,6 @@
 # Homey Integration for Home Assistant
 
-## What's New in 1.2.5-dev.1
+## What's New in 1.2.5
 
 ### Fixed
 - **Homey Energy Dongle legacy gas/water compatibility**: Added backward compatibility for legacy `sgas*` / `swater*` capability names by treating them as cumulative gas/water meters.

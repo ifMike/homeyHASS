@@ -22,7 +22,7 @@
     "aiohttp>=3.8.0",
     "python-socketio>=5.0.0"
   ],
-  "version": "1.2.5-dev.1",
+  "version": "1.6.0-dev.1",
   "zeroconf": [
     "_homey._tcp.local."
   ]

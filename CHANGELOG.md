@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.5] - 2026-05-07
+
+### Fixed
+- **Energy dashboard source eligibility for gas/water sensors**: `meter_gas`, `meter_water`, and legacy `sgas*`/`swater*` capabilities now expose gas/water `device_class` when supported by Home Assistant so they appear correctly in the Energy Dashboard source picker.
+- **Legacy Homey Energy Dongle compatibility**: Added backward compatibility for legacy cumulative gas/water capabilities (`sgas*` / `swater*`) with proper `TOTAL_INCREASING` state class and `m³` units.
+- **Legacy gas/water labeling clarity**: Improved naming for legacy gas/water entities to make them easier to identify in Home Assistant.
+
 ## [1.2.4] - 2026-04-28
 
 ### Fixed
@@ -639,4 +646,4 @@ When making changes:
 
 ---
 
-**Last Updated**: 2026-04-28
+**Last Updated**: 2026-05-07

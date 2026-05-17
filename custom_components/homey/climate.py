@@ -10,7 +10,6 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -18,6 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import HomeyDataUpdateCoordinator
 from .device_info import build_entity_unique_id, get_device_info
+from .temperature import get_device_temperature_unit, resolve_temperature_unit
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,8 +110,19 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         self._attr_unique_id = build_entity_unique_id(
             homey_id, device_id, "climate", multi_homey
         )
-        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
         capabilities = device.get("capabilitiesObj", {})
+        target_temp_cap = capabilities.get("target_temperature", {})
+        measure_temp_cap = capabilities.get("measure_temperature", {})
+        entry = coordinator.config_entry
+        if entry:
+            self._homey_temperature_unit = get_device_temperature_unit(
+                entry, device_id, target_temp_cap, measure_temp_cap
+            )
+        else:
+            self._homey_temperature_unit = resolve_temperature_unit(
+                target_temp_cap, measure_temp_cap
+            )
+        self._attr_temperature_unit = self._homey_temperature_unit
         supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
         
         # Add humidity support if available
@@ -266,9 +277,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         else:
             self._attr_hvac_mode = hvac_modes[0] if hvac_modes else HVACMode.HEAT_COOL
 
-        # Get temperature range from capability
-        # Home Assistant requires min/max temp to show temperature controls
-        target_temp_cap = capabilities.get("target_temperature", {})
+        # Min/max/step use Homey's native unit (same as temperature_unit above).
         if "min" in target_temp_cap:
             self._attr_min_temp = target_temp_cap["min"]
         else:
@@ -404,16 +413,20 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         
         if success:
             _LOGGER.info(
-                "Successfully set target temperature to %s°C for device %s (%s)",
-                temperature, self._device_id, self._attr_name
+                "Successfully set target temperature to %s %s for device %s (%s)",
+                temperature,
+                self._homey_temperature_unit,
+                self._device_id,
+                self._attr_name,
             )
             # Immediately refresh this device's state for instant UI feedback
             await self.coordinator.async_refresh_device(self._device_id)
         else:
             _LOGGER.error(
-                "Failed to set target temperature to %s°C for device %s (%s). "
+                "Failed to set target temperature to %s %s for device %s (%s). "
                 "Check API permissions (homey.device.control) and device capabilities.",
                 temperature,
+                self._homey_temperature_unit,
                 self._device_id,
                 self._attr_name,
             )

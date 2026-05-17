@@ -31,6 +31,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator
 from .device_info import build_entity_unique_id, get_device_info
+from .temperature import get_device_temperature_unit, resolve_temperature_unit
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -621,9 +622,28 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
         is_price_sensor = capability_id in ["measure_price_total", "measure_price_lowest", "measure_price_highest"]
         # Check if this is an accumulated cost sensor that needs currency code (not symbol)
         is_accumulated_cost = capability_id == "accumulatedCost"
-        
+        is_temperature_sensor = (
+            self._attr_device_class == SensorDeviceClass.TEMPERATURE
+            or base_capability in ("measure_temperature", "measure_soil_temperature")
+            or (
+                base_capability.startswith("measure_")
+                and "temperature" in base_capability
+            )
+        )
+
+        # Temperature: Homey ``units`` or per-device override (Settings → Homey).
+        if is_temperature_sensor:
+            entry = coordinator.config_entry
+            if entry:
+                self._attr_native_unit_of_measurement = get_device_temperature_unit(
+                    entry, device_id, capability_data
+                )
+            else:
+                self._attr_native_unit_of_measurement = resolve_temperature_unit(
+                    capability_data
+                )
         # Use unit from capability data if available, otherwise use configured unit
-        if unit_from_capability:
+        elif unit_from_capability:
             if is_price_sensor:
                 # Convert currency symbol to currency code + /kWh format for Energy dashboard
                 unit_normalized = self._normalize_price_unit(unit_from_capability)

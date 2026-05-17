@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import quote
 
 from homeassistant.components import persistent_notification
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -20,6 +21,8 @@ from .const import (
     CAPABILITY_TO_PLATFORM,
     CONF_DEVICE_FILTER,
     DOMAIN,
+    capability_base,
+    is_capability_supported,
 )
 from .device_info import build_device_identifier, extract_device_id, split_device_identifier
 from .homey_api import HomeyAPI
@@ -52,6 +55,7 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         recovery_cooldown: int | None = None,
         homey_id: str | None = None,
         multi_homey: bool = False,
+        config_entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the coordinator."""
         if update_interval is None:
@@ -90,6 +94,7 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         self.zones = zones or {}
         self.homey_id = homey_id
         self.multi_homey = multi_homey
+        self.config_entry = config_entry
         self._previous_device_ids: set[str] = set()
         self._last_recovery_attempt: float = 0.0
         self._recovery_cooldown: int = recovery_cooldown or 300  # seconds
@@ -329,7 +334,11 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
             return
 
         self._known_capabilities.update(new_caps)
-        self._create_capability_notification(new_caps, devices, caps_by_device)
+        unknown_caps = {cap_id for cap_id in new_caps if not is_capability_supported(cap_id)}
+        if not unknown_caps:
+            return
+
+        self._create_capability_notification(unknown_caps, devices, caps_by_device)
 
     def _create_capability_notification(
         self,
@@ -388,7 +397,7 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                 cap_min = cap_data.get("min")
                 cap_max = cap_data.get("max")
                 cap_step = cap_data.get("step")
-                base_cap = cap_id.split(".")[0] if "." in cap_id else cap_id
+                base_cap = capability_base(cap_id)
                 known_platform = CAPABILITY_TO_PLATFORM.get(base_cap)
                 suggested = _suggest_platform(cap_type, cap_setable, base_cap)
                 raw_str = json.dumps(cap_data, default=str)

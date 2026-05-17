@@ -23,6 +23,8 @@ from .const import (
     CONF_POLL_INTERVAL,
     CONF_RECOVERY_COOLDOWN,
     SERVICE_TEST_CAPABILITY_REPORT,
+    SERVICE_SET_DEVICE_TEMPERATURE_UNIT,
+    CONF_TEMPERATURE_UNIT_OVERRIDES,
     DOMAIN,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_RECOVERY_COOLDOWN,
@@ -295,6 +297,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         recovery_cooldown=recovery_cooldown,
         homey_id=homey_id,
         multi_homey=hass.data[DOMAIN].get("multi_homey_enabled", False),
+        config_entry=entry,
     )
     await coordinator.async_config_entry_first_refresh()
 
@@ -447,6 +450,66 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "rename_entities_to_titles",
             async_rename_entities_to_titles,
             schema=vol.Schema({vol.Optional("entry_id"): cv.string}),
+        )
+
+        async def async_set_device_temperature_unit(call) -> None:
+            """Override temperature unit for a device (Homey metadata wrong/missing)."""
+            device_id = call.data["device_id"]
+            unit = call.data["unit"]
+            entry_id = call.data.get("entry_id")
+            target_entry = None
+
+            if entry_id:
+                target_entry = hass.config_entries.async_get_entry(entry_id)
+            else:
+                for candidate in hass.config_entries.async_entries(DOMAIN):
+                    overrides = candidate.options.get(
+                        CONF_TEMPERATURE_UNIT_OVERRIDES, {}
+                    )
+                    if device_id in overrides or target_entry is None:
+                        target_entry = candidate
+                if len(hass.config_entries.async_entries(DOMAIN)) == 1:
+                    target_entry = hass.config_entries.async_entries(DOMAIN)[0]
+
+            if not target_entry:
+                _LOGGER.error(
+                    "No Homey config entry found for temperature unit override"
+                )
+                return
+
+            overrides = dict(
+                target_entry.options.get(CONF_TEMPERATURE_UNIT_OVERRIDES, {})
+            )
+            if str(unit).strip().lower() in ("auto", "automatic", "homey"):
+                overrides.pop(device_id, None)
+            else:
+                overrides[device_id] = str(unit).strip().lower()
+
+            hass.config_entries.async_update_entry(
+                target_entry,
+                options={
+                    **target_entry.options,
+                    CONF_TEMPERATURE_UNIT_OVERRIDES: overrides,
+                },
+            )
+            await hass.config_entries.async_reload(target_entry.entry_id)
+            _LOGGER.info(
+                "Updated temperature unit override for device %s to %s",
+                device_id,
+                unit,
+            )
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_DEVICE_TEMPERATURE_UNIT,
+            async_set_device_temperature_unit,
+            schema=vol.Schema(
+                {
+                    vol.Required("device_id"): cv.string,
+                    vol.Required("unit"): cv.string,
+                    vol.Optional("entry_id"): cv.string,
+                }
+            ),
         )
         hass.data[DOMAIN]["services_registered"] = True
 

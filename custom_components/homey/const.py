@@ -13,6 +13,7 @@ CONF_INVERT_LIGHT_TEMPERATURE = "invert_light_temperature"
 CONF_EXPOSE_SETTABLE_TEXT = "expose_settable_text"
 CONF_EXPOSE_READONLY_STRINGS = "expose_readonly_strings"
 CONF_USE_CAPABILITY_TITLES = "use_capability_titles"
+CONF_TEMPERATURE_UNIT_OVERRIDES = "temperature_unit_overrides"
 
 DEFAULT_NAME = "Homey"
 DEFAULT_POLL_INTERVAL = 10  # seconds (fallback when Socket.IO is down)
@@ -27,6 +28,7 @@ CAPABILITY_REPORT_ISSUE_URL = "https://github.com/ifMike/homeyHASS/issues/new"
 
 # Services
 SERVICE_TEST_CAPABILITY_REPORT = "test_capability_report"
+SERVICE_SET_DEVICE_TEMPERATURE_UNIT = "set_device_temperature_unit"
 
 # Homey API endpoints
 # Try manager API structure first (based on Homey API documentation)
@@ -87,4 +89,38 @@ CAPABILITY_TO_PLATFORM = {
     "speaker_next": "media_player",
     "speaker_prev": "media_player",
 }
+
+_GENERIC_SENSOR_CAPABILITIES = frozenset(
+    {
+        "accumulatedCost",
+        "clean_time",
+        "clean_area",
+        "clean_last",
+        "position_x",
+        "position_y",
+    }
+)
+
+
+def capability_base(cap_id: str) -> str:
+    """Return the base capability id (part before the first dot)."""
+    return cap_id.split(".")[0] if "." in cap_id else cap_id
+
+
+def is_capability_supported(cap_id: str) -> bool:
+    """Return True when the integration already handles this capability."""
+    base = capability_base(cap_id)
+    if base in CAPABILITY_TO_PLATFORM:
+        return True
+    if (
+        cap_id.startswith(("measure_", "meter_", "alarm_"))
+        or base.startswith(("measure_", "meter_", "alarm_"))
+    ):
+        return True
+    if cap_id in _GENERIC_SENSOR_CAPABILITIES or base in _GENERIC_SENSOR_CAPABILITIES:
+        return True
+    capability_lower = cap_id.lower()
+    if any(keyword in capability_lower for keyword in ("migrate", "reset", "identify")):
+        return True
+    return False
 

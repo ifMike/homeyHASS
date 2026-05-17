@@ -7,6 +7,27 @@ test_capability_report:
       description: Optional Homey config entry ID to target if multiple entries exist.
       example: "abc123def456"
 
+set_device_temperature_unit:
+  name: Set device temperature unit
+  description: >
+    Override the temperature unit for a Homey device when capability metadata is
+    wrong or missing. Use "auto" to clear the override and use Homey metadata again.
+  fields:
+    device_id:
+      name: Homey device ID
+      description: The Homey device UUID (shown in capability reports).
+      required: true
+      example: "a390b60a-5931-4a24-901a-d4b469331876"
+    unit:
+      name: Unit
+      description: "celsius", "fahrenheit", or "auto" to remove override.
+      required: true
+      example: "fahrenheit"
+    entry_id:
+      name: Config Entry ID
+      description: Optional Homey config entry ID if multiple entries exist.
+      example: "abc123def456"
+
 rename_entities_to_titles:
   name: Rename Entities to Titles
   description: Update Homey entity display names to use capability titles (entity_id unchanged).

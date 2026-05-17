@@ -20,9 +20,11 @@ set_device_temperature_unit:
       example: "a390b60a-5931-4a24-901a-d4b469331876"
     unit:
       name: Unit
-      description: "celsius", "fahrenheit", or "auto" to remove override.
+      description: >-
+        Temperature unit for values from Homey — celsius, fahrenheit, or auto to
+        clear the override and use Homey metadata again.
       required: true
-      example: "fahrenheit"
+      example: fahrenheit
     entry_id:
       name: Config Entry ID
       description: Optional Homey config entry ID if multiple entries exist.

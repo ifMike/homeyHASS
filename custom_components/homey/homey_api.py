@@ -506,7 +506,8 @@ class HomeyAPI:
         - windowcoverings_state: HA 0-100 → Homey 0-1 (handled in cover.py before calling this)
         - volume_set: HA 0.0-1.0 → Homey 0-1 (no conversion needed, both normalized)
         - light_temperature: Both use Kelvin, no conversion needed
-        - target_temperature: Both use Celsius, no conversion needed
+        - target_temperature / measure_temperature: values stay in the device's
+          Homey unit (see temperature.resolve_temperature_unit); no conversion here
         """
         # Handle None values
         if value is None:

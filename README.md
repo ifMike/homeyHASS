@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 1.2.5 | **Last Updated**: 2026-05-07 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.6 | **Last Updated**: 2026-05-17 | [Changelog](CHANGELOG.md)
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -59,6 +59,11 @@ This Homey integration brings your [Homey](https://homey.app) hub into Home Assi
 - Logic Variables: import as Number, Switch, and Text entities
 - Physical device buttons: exposed as Button entities for automation triggers
 - Media player: full metadata support (artist, album, track, duration, position, shuffle, repeat)
+
+**Temperature units**
+- Temperatures use the unit reported by Homey (`°C` or `°F` from capability metadata).
+- Home Assistant displays them in the unit for your region (**Settings → System → Home information**; region sets Metric = Celsius or US Customary = Fahrenheit).
+- If a device sends the wrong unit, set an override under **Settings → Devices & services → Homey → Configure → Device temperature units**, or call `homey.set_device_temperature_unit`.
 
 **Organization and Sync**
 - Room/area organization based on Homey rooms

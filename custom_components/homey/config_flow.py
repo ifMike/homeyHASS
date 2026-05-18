@@ -28,6 +28,7 @@ from .const import (
     CONF_EXPOSE_SETTABLE_TEXT,
     CONF_EXPOSE_READONLY_STRINGS,
     CONF_USE_CAPABILITY_TITLES,
+    CONF_TEMPERATURE_UNIT_OVERRIDES,
     CONF_TOKEN,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_RECOVERY_COOLDOWN,
@@ -38,6 +39,11 @@ from .const import (
     DOMAIN,
 )
 from .device_info import get_device_type
+from .temperature import (
+    TEMPERATURE_OVERRIDE_AUTO,
+    TEMPERATURE_OVERRIDE_CELSIUS,
+    TEMPERATURE_OVERRIDE_FAHRENHEIT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1700,6 +1706,7 @@ class HomeyOptionsFlowHandler(config_entries.OptionsFlow):
             menu_options={
                 "settings": "Connection & Polling",
                 "device_management": "Manage Devices",
+                "temperature_units": "Device temperature units",
             },
         )
 
@@ -2092,5 +2099,140 @@ class HomeyOptionsFlowHandler(config_entries.OptionsFlow):
                 "device_count": str(len(devices)),
                 "room_count": str(len(devices_by_room_and_type)),
             },
+        )
+
+    async def async_step_temperature_units(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Set per-device temperature unit when Homey metadata is wrong or missing."""
+        devices: dict[str, Any] = {}
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self._entry.entry_id)
+        if isinstance(entry_data, dict):
+            coordinator = entry_data.get("coordinator")
+            if coordinator and coordinator.data:
+                devices = coordinator.data
+
+        if not devices:
+            errors: dict[str, str] = {}
+            try:
+                timeout = aiohttp.ClientTimeout(total=10)
+                connector = aiohttp.TCPConnector(ssl=False)
+                async with aiohttp.ClientSession(
+                    connector=connector,
+                    timeout=timeout,
+                    headers={"Authorization": f"Bearer {self.token}"},
+                ) as session:
+                    for device_endpoint in (
+                        f"{self.host}/api/manager/devices/device/",
+                        f"{self.host}/api/manager/devices/device",
+                        f"{self.host}/api/v1/device/",
+                        f"{self.host}/api/v1/device",
+                    ):
+                        try:
+                            async with session.get(device_endpoint) as response:
+                                if response.status == 200:
+                                    devices_data = await response.json()
+                                    if isinstance(devices_data, dict):
+                                        devices = devices_data
+                                    elif isinstance(devices_data, list):
+                                        devices = {
+                                            device.get("id", str(i)): device
+                                            for i, device in enumerate(devices_data)
+                                        }
+                                    break
+                        except Exception as err:
+                            _LOGGER.debug(
+                                "Error fetching devices from %s: %s",
+                                device_endpoint,
+                                err,
+                            )
+            except Exception as err:
+                _LOGGER.error("Failed to fetch devices for temperature units: %s", err)
+                errors["base"] = "cannot_fetch_devices"
+                return self.async_show_form(
+                    step_id="temperature_units",
+                    data_schema=vol.Schema({}),
+                    errors=errors,
+                )
+
+        temp_devices = {
+            device_id: device
+            for device_id, device in devices.items()
+            if "measure_temperature" in device.get("capabilitiesObj", {})
+            or "target_temperature" in device.get("capabilitiesObj", {})
+        }
+
+        if not temp_devices:
+            return self.async_abort(reason="no_temperature_devices")
+
+        if user_input is not None:
+            device_id = user_input["device"]
+            unit = user_input["unit"]
+            overrides = dict(
+                self._entry.options.get(CONF_TEMPERATURE_UNIT_OVERRIDES, {})
+            )
+            if unit == TEMPERATURE_OVERRIDE_AUTO:
+                overrides.pop(device_id, None)
+            else:
+                overrides[device_id] = unit
+            new_options = {
+                **self._entry.options,
+                CONF_TEMPERATURE_UNIT_OVERRIDES: overrides,
+            }
+            self.hass.config_entries.async_update_entry(
+                self._entry, options=new_options
+            )
+            await self.hass.config_entries.async_reload(self._entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        device_options = [
+            {
+                "value": device_id,
+                "label": str(device.get("name") or device_id),
+            }
+            for device_id, device in sorted(
+                temp_devices.items(),
+                key=lambda item: str(item[1].get("name") or item[0]).lower(),
+            )
+        ]
+        overrides = self._entry.options.get(CONF_TEMPERATURE_UNIT_OVERRIDES, {})
+        override_summary = ", ".join(
+            f"{temp_devices.get(device_id, {}).get('name', device_id)} → {unit}"
+            for device_id, unit in sorted(overrides.items())
+        ) or "None"
+
+        schema = vol.Schema(
+            {
+                vol.Required("device"): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=device_options,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required("unit", default=TEMPERATURE_OVERRIDE_AUTO): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {
+                                "value": TEMPERATURE_OVERRIDE_AUTO,
+                                "label": "Use Homey reported unit (°C if missing)",
+                            },
+                            {
+                                "value": TEMPERATURE_OVERRIDE_CELSIUS,
+                                "label": "Celsius",
+                            },
+                            {
+                                "value": TEMPERATURE_OVERRIDE_FAHRENHEIT,
+                                "label": "Fahrenheit",
+                            },
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="temperature_units",
+            data_schema=schema,
+            description_placeholders={"overrides": override_summary},
         )
 

@@ -1,12 +1,14 @@
 # Homey Integration for Home Assistant
 
-## What's New in 1.2.5
+## What's New in 1.2.6
+
+### Added
+- **Device temperature unit override**: Configure per-device Celsius/Fahrenheit when Homey capability metadata is wrong or missing (**Settings → Homey → Configure → Device temperature units**), or use the `homey.set_device_temperature_unit` service.
+- **Temperature unit handling**: Climate and temperature sensors use Homey `units` metadata. Display uses the unit from your Home Assistant region (**Settings → System → Home information**; region sets Metric = °C or US Customary = °F).
 
 ### Fixed
-- **Homey Energy Dongle legacy gas/water compatibility**: Added backward compatibility for legacy `sgas*` / `swater*` capability names by treating them as cumulative gas/water meters.
-- **Energy metadata for legacy entities**: Legacy gas/water entities now use `total_increasing` with `m³` units for correct utility tracking behavior.
-- **Legacy label clarity**: Improved naming for legacy gas/water entities to make them easier to identify in Home Assistant.
-- **Energy source eligibility for gas/water**: `meter_gas`, `meter_water`, and legacy `sgas*`/`swater*` sensors now expose gas/water `device_class` when supported by Home Assistant so they appear correctly in the Energy Dashboard source picker.
+- **Capability alerts**: New-capability notifications only fire for capabilities the integration does not already support (no more alerts for known `measure_*` capabilities such as `measure_current`).
+- **Thermostat temperature display**: Fixes wrong temperatures (e.g. 69°F shown as 156°F) when drivers report Fahrenheit values but label them as Celsius.
 
 For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).
 
@@ -21,4 +23,4 @@ After installing via HACS:
 3. Enter your Homey IP address and API key
 4. Select devices to import
 
-For detailed setup instructions, see the [README](README.md).
+For detailed setup instructions, see the [README](https://github.com/ifMike/homeyHASS/blob/main/README.md).

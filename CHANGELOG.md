@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.6] - 2026-05-17
+
+### Added
+- **Device temperature unit override**: Per-device Celsius/Fahrenheit when Homey metadata is wrong or missing (integration **Configure → Device temperature units**, or `homey.set_device_temperature_unit` service).
+- **Temperature unit handling**: Climate and temperature sensors use Homey `units` metadata; values are shown in the unit for your Home Assistant region (**Settings → System → Home information**; region sets Metric = °C or US Customary = °F).
+
+### Fixed
+- **Capability alerts**: New-capability notifications only for capabilities the integration does not already support (e.g. no alert for known `measure_current`).
+- **Thermostat temperatures**: Fixes incorrect display when drivers send Fahrenheit values but metadata says Celsius (e.g. 69°F shown as 156°F).
+
 ## [1.2.5] - 2026-05-07
 
 ### Fixed

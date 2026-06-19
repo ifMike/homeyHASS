@@ -10,9 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, UNIQUE_ID_PREFIX
+from .const import CAPABILITY_TO_PLATFORM, DOMAIN, UNIQUE_ID_PREFIX, capability_base
 from .coordinator import HomeyDataUpdateCoordinator
-from .device_info import build_entity_unique_id, get_device_info
+from .device_info import build_entity_unique_id, format_capability_label, get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -187,6 +187,8 @@ async def async_setup_entry(
                 capability_id.endswith("_button.park") or
                 capability_id.endswith("_button.start") or
                 (capability_id.startswith("gardena_button.") and capability_obj.get("setable"))
+                or CAPABILITY_TO_PLATFORM.get(capability_id) == "button"
+                or CAPABILITY_TO_PLATFORM.get(capability_base(capability_id)) == "button"
             )
             
             if is_button:
@@ -277,12 +279,16 @@ class HomeyDeviceButton(CoordinatorEntity, ButtonEntity):
         
         # Create button name
         device_name = device.get("name", "Unknown Device")
+        capability_obj = device.get("capabilitiesObj", {}).get(capability_id, {})
         if capability_id == "button":
             button_name = f"{device_name} Button"
-        else:
+        elif capability_id.startswith("button."):
             # Extract button number (e.g., "button.1" -> "1")
             button_num = capability_id.replace("button.", "")
             button_name = f"{device_name} Button {button_num}"
+        else:
+            label = capability_obj.get("title") or format_capability_label(capability_id)
+            button_name = f"{device_name} {label}"
         
         self._attr_name = button_name
         self._attr_unique_id = build_entity_unique_id(

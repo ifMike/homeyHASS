@@ -50,6 +50,9 @@ The integration domain was renamed from `homey` to `homey_hass` to resolve a con
 
 Install `custom_components/homey_hass/` and add the **Homey** integration normally. No migration needed.
 
+### Fixed
+- **Dyson fan capabilities**: `oscillate` is exposed on the fan entity; `less_air` and `more_air` are exposed as button entities. Stops false "new capability" alerts for these Dyson Air Multiplier controls.
+
 ## [1.2.6] - 2026-05-17
 
 ### Added

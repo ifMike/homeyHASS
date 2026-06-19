@@ -5,7 +5,14 @@ import json
 import re
 from pathlib import Path
 
-import yaml
+def _load_services_yaml_keys(path: Path) -> set[str]:
+    """Parse top-level service keys from services.yaml without PyYAML."""
+    keys: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith(" ") and not line.startswith("\t") and line.endswith(":"):
+            keys.add(line[:-1].strip())
+    return keys
+
 
 ROOT = Path(__file__).resolve().parents[1]
 INTEGRATION_DIR = ROOT / "custom_components" / "homey_hass"
@@ -269,9 +276,8 @@ def test_old_integration_folder_is_gone() -> None:
 
 
 def test_services_yaml_matches_registered_services() -> None:
-    services = yaml.safe_load(SERVICES_PATH.read_text(encoding="utf-8"))
+    yaml_services = _load_services_yaml_keys(SERVICES_PATH)
     init_source = INIT_PATH.read_text(encoding="utf-8")
-    yaml_services = set(services.keys())
     # Services declared in services.yaml must be registered under DOMAIN in __init__.py
     for service in yaml_services:
         assert (

@@ -4,7 +4,15 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 1.2.6 | **Last Updated**: 2026-05-17 | [Changelog](CHANGELOG.md)
+**Version**: 2.0.0 | **Last Updated**: 2026-06-19 | [Changelog](CHANGELOG.md)
+
+> ## ⚠️ Version 2.0.0 — Breaking change (read before updating)
+>
+> **If you are on version 1.x and your Homey integration is working today, do not update to 2.0.0 unless you are ready to migrate manually.** There is no automatic upgrade.
+>
+> Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required for official HACS default repository listing — the old domain conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The display name in Home Assistant stays **Homey**, but updating without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
+>
+> **Stay on 1.2.6** until you can follow the [migration guide](#migrating-from-1x-to-200). **New users** should install 2.0.0 directly. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -21,6 +29,7 @@ A Homey integration for Home Assistant that automatically discovers and connects
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Updating](#updating)
+- [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200)
 - [Error Messages](#error-messages)
 - [Troubleshooting](#troubleshooting)
 - [Supported Devices](#supported-devices)
@@ -63,7 +72,7 @@ This Homey integration brings your [Homey](https://homey.app) hub into Home Assi
 **Temperature units**
 - Temperatures use the unit reported by Homey (`°C` or `°F` from capability metadata).
 - Home Assistant displays them in the unit for your region (**Settings → System → Home information**; region sets Metric = Celsius or US Customary = Fahrenheit).
-- If a device sends the wrong unit, set an override under **Settings → Devices & services → Homey → Configure → Device temperature units**, or call `homey.set_device_temperature_unit`.
+- If a device sends the wrong unit, set an override under **Settings → Devices & services → Homey → Configure → Device temperature units**, or call `homey_hass.set_device_temperature_unit`.
 
 **Organization and Sync**
 - Room/area organization based on Homey rooms
@@ -145,7 +154,7 @@ Create an API key in Homey before installing:
 5. Restart Home Assistant
 6. Go to **Settings** → **Devices & Services** → **Add Integration** → Search for **Homey**
 
-**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available)
+**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available). **See [Updating](#updating) — version 2.0.0 is a breaking change.**
 
 **Beta/Dev releases**: Click **Redownload** and select the version (e.g., `dev`) from the dropdown.
 
@@ -158,11 +167,11 @@ Create an API key in Homey before installing:
    git clone https://github.com/ifMike/homeyHASS.git
    ```
 
-2. Copy the `custom_components/homey` folder to your Home Assistant `custom_components` directory:
+2. Copy the `custom_components/homey_hass` folder to your Home Assistant `custom_components` directory:
    ```
-   <config directory>/custom_components/homey/
+   <config directory>/custom_components/homey_hass/
    ```
-   Example: `/config/custom_components/homey/`
+   Example: `/config/custom_components/homey_hass/`
 
 3. Restart Home Assistant
 
@@ -184,11 +193,13 @@ Create an API key in Homey before installing:
 
 3. **Copy files**
    - Navigate to `config/custom_components/`
-   - Copy the `homey` folder there
+   - Copy the `homey_hass` folder there
 
 4. **Restart Home Assistant** and add the integration
 
-**Migrating from manual to HACS**: Delete the `custom_components/homey` folder, restart Home Assistant, then install via HACS. Your configuration is preserved.
+**Migrating from manual to HACS (same version)**: Delete the `custom_components/homey_hass` folder, restart Home Assistant, then install via HACS. Your configuration is preserved.
+
+**Migrating from 1.x to 2.0.0**: This is a breaking change — configuration is **not** preserved automatically. See [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
 
 
 ---
@@ -222,13 +233,13 @@ All Homey devices appear under **Settings** → **Devices & Services** → **Hom
 **Homey Flows**
 
 - Each enabled Flow appears as a button entity
-- Service calls: `homey.trigger_flow`, `homey.enable_flow`, `homey.disable_flow`
+- Service calls: `homey_hass.trigger_flow`, `homey_hass.enable_flow`, `homey_hass.disable_flow`
 - Use `flow_id` or `flow_name` in service data
 
   Example automation:
   ```yaml
   action:
-    - service: homey.trigger_flow
+    - service: homey_hass.trigger_flow
       data:
         flow_name: "Evening Scene"
   ```
@@ -251,25 +262,103 @@ All Homey devices appear under **Settings** → **Devices & Services** → **Hom
 
 ## Updating
 
-**Via HACS**
+### Version 2.0.0 — breaking change
 
-1. HACS → Integrations → Homey Integration
-2. Click **Update** if available
-3. Restart Home Assistant
+**Do not update blindly.** Version 2.0.0 renames the integration domain from `homey` to `homey_hass`. This is required for listing in the official HACS default repository (the domain `homey` is already used by another integration). The UI name stays **Homey**, but the technical domain, install folder, and service namespace all change.
 
-**Manual**
+| If you are… | What to do |
+|-------------|------------|
+| On **1.x** with a **working** setup | **Stay on 1.2.6** until you can migrate. Do **not** click Update in HACS yet. |
+| On **1.x** and ready to migrate | Follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) **before** updating. |
+| A **new user** | Install **2.0.0** normally — no migration needed. |
+
+Updating from 1.x to 2.0.0 **without** migrating will break your integration (failed config entry, unavailable entities, broken automations).
+
+### Via HACS (1.x → 2.0.0)
+
+Only when you are ready to migrate:
+
+1. Read [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) fully.
+2. HACS → Integrations → Homey Integration → **Update**
+3. Complete all migration steps (delete old config entry, remove old folder, re-add integration, fix automations).
+4. Restart Home Assistant
+
+### Via HACS (already on 2.0.0)
+
+1. HACS → Integrations → Homey Integration → **Update**
+2. Restart Home Assistant
+
+### Manual
 
 1. Download the latest version from GitHub
-2. Replace the `custom_components/homey` folder
+2. Replace the `custom_components/homey_hass` folder
 3. Restart Home Assistant
 4. Reload the integration: Settings → Devices & Services → Homey → Configure → Reload
 
-**If devices stop working after update**
+### If devices stop working after update
 
+- If you updated from 1.x without migrating, see [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200)
 - Reload the integration
 - Check API key permissions
 - Review the [CHANGELOG](CHANGELOG.md)
 - Restore a backup if you created one
+
+---
+
+## Migrating from 1.x to 2.0.0
+
+**Required for all users upgrading from version 1.x.** There is no automatic migration.
+
+### Why
+
+The domain `homey` conflicts with another HACS integration ([RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). Version 2.0.0 uses domain `homey_hass` so this integration can be added to the official HACS default repository. The display name **Homey** is unchanged.
+
+### What you will lose without migration
+
+- Working config entry and all entities (unavailable)
+- Automations/scripts using `homey.trigger_flow`, `homey.enable_flow`, `homey.disable_flow`, `homey.set_device_temperature_unit`, and other `homey.*` services
+- Energy dashboard bindings if entity IDs change
+
+### Before you start
+
+1. **Create a Home Assistant backup**
+2. Note your Homey **IP/hostname** and **API key** (Homey app → Settings → API Keys)
+3. Plan time to fix automations and dashboards afterward
+
+### Step-by-step migration
+
+1. **Settings → Devices & services → Homey** (the existing 1.x entry)
+2. Open the integration menu → **Delete** the config entry. Confirm. This removes entities from the old domain.
+3. Update to **2.0.0** via HACS (or download the release and copy files manually).
+4. On your Home Assistant config directory, **delete** the old folder if it exists:
+   ```
+   custom_components/homey/
+   ```
+5. Confirm the new folder exists:
+   ```
+   custom_components/homey_hass/
+   ```
+6. **Restart Home Assistant**
+7. **Settings → Devices & services → Add Integration** → search **Homey**
+8. Enter your host and API key; complete device selection as before
+9. **Update automations and scripts** — replace every `homey.` service with `homey_hass.`:
+
+   | Old (1.x) | New (2.0.0) |
+   |-----------|-------------|
+   | `homey.trigger_flow` | `homey_hass.trigger_flow` |
+   | `homey.enable_flow` | `homey_hass.enable_flow` |
+   | `homey.disable_flow` | `homey_hass.disable_flow` |
+   | `homey.set_device_temperature_unit` | `homey_hass.set_device_temperature_unit` |
+   | `homey.rename_entities_to_titles` | `homey_hass.rename_entities_to_titles` |
+   | `homey.test_capability_report` | `homey_hass.test_capability_report` |
+
+10. Check **Settings → Devices & services → Entities** for orphaned unavailable entities and remove them if needed.
+11. Update dashboards and the Energy dashboard if entity IDs changed.
+
+### After migration
+
+- Enable debug logging if needed: `custom_components.homey_hass: debug` (see [Troubleshooting](#troubleshooting))
+- Open an issue on GitHub if entities or devices are missing after re-setup
 
 ---
 
@@ -361,7 +450,7 @@ This section explains common setup errors and how to resolve them. Use your brow
 **When it appears**: During setup when an unexpected error occurs.
 
 **Solutions**
-- Check logs: Settings → System → Logs (look for `custom_components.homey`)
+- Check logs: Settings → System → Logs (look for `custom_components.homey_hass`)
 - Enable debug logging and retry
 - Report the issue on GitHub with log output
 
@@ -403,7 +492,7 @@ This section explains common setup errors and how to resolve them. Use your brow
   logger:
     default: info
     logs:
-      custom_components.homey: debug
+      custom_components.homey_hass: debug
   ```
 
 ### Devices Not Appearing
@@ -481,7 +570,7 @@ See [SUPPORTED_DEVICES.md](SUPPORTED_DEVICES.md) for a full list of supported de
 **Project Structure**
 
 ```
-custom_components/homey/
+custom_components/homey_hass/
 ├── __init__.py
 ├── binary_sensor.py
 ├── button.py

@@ -527,7 +527,7 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             else:
                 host = ""
 
-        await self.async_set_unique_id(hostname or host or "homey")
+        await self.async_set_unique_id(hostname or host or DOMAIN)
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
         # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
         self._abort_if_unique_id_configured()

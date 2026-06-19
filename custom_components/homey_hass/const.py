@@ -1,7 +1,8 @@
 """Constants for the Homey integration."""
 from __future__ import annotations
 
-DOMAIN = "homey"
+DOMAIN = "homey_hass"
+UNIQUE_ID_PREFIX = "homey_hass_"
 
 CONF_HOST = "host"
 CONF_TOKEN = "token"

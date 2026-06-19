@@ -46,7 +46,7 @@ jobs:
             print(f"Release notes must include exact line: {build_line}")
             sys.exit(1)
 
-          manifest_path = "custom_components/homey/manifest.json"
+          manifest_path = "custom_components/homey_hass/manifest.json"
           with open(manifest_path, "r", encoding="utf-8") as handle:
             manifest = json.load(handle)
 

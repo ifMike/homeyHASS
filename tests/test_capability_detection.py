@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-_CONST_PATH = _ROOT / "custom_components" / "homey" / "const.py"
+_CONST_PATH = _ROOT / "custom_components" / "homey_hass" / "const.py"
 
 
 def _load_const_module():

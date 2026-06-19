@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .const import DOMAIN
+from .const import DOMAIN, UNIQUE_ID_PREFIX
 def build_device_identifier(
     homey_id: str | None, device_id: str, multi_homey: bool = False
 ) -> tuple[str, str]:
@@ -22,8 +22,28 @@ def build_entity_unique_id(
 ) -> str:
     """Build a unique entity ID scoped to a Homey hub."""
     if multi_homey and homey_id:
-        return f"homey_{homey_id}_{primary_id}_{suffix}"
-    return f"homey_{primary_id}_{suffix}"
+        return f"{UNIQUE_ID_PREFIX}{homey_id}_{primary_id}_{suffix}"
+    return f"{UNIQUE_ID_PREFIX}{primary_id}_{suffix}"
+
+
+def extract_unique_id_primary(
+    unique_id: str,
+    suffix: str,
+    *,
+    homey_id: str | None = None,
+    multi_homey: bool = False,
+) -> str | None:
+    """Extract the primary ID from a unique_id ending with _{suffix}."""
+    if not unique_id.startswith(UNIQUE_ID_PREFIX):
+        return None
+    tail = f"_{suffix}"
+    body = unique_id[len(UNIQUE_ID_PREFIX) :]
+    if not body.endswith(tail):
+        return None
+    middle = body[: -len(tail)]
+    if multi_homey and homey_id and middle.startswith(f"{homey_id}_"):
+        middle = middle[len(homey_id) + 1 :]
+    return middle or None
 
 
 def extract_device_id(identifier: tuple[str, str]) -> str | None:

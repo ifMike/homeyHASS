@@ -26,11 +26,12 @@ from .const import (
     SERVICE_SET_DEVICE_TEMPERATURE_UNIT,
     CONF_TEMPERATURE_UNIT_OVERRIDES,
     DOMAIN,
+    UNIQUE_ID_PREFIX,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_RECOVERY_COOLDOWN,
 )
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
-from .device_info import build_device_identifier, extract_device_id
+from .device_info import build_device_identifier, extract_device_id, extract_unique_id_primary
 from .homey_api import HomeyAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def _check_installation_conflict() -> None:
         integration_dir = Path(__file__).parent.resolve()
         
         # Check for HACS metadata file (HACS creates .hacs.json in custom_components/)
-        # Path structure: config/custom_components/homey/__init__.py
+        # Path structure: config/custom_components/homey_hass/__init__.py
         # So custom_components is parent.parent
         custom_components_dir = integration_dir.parent
         hacs_json = custom_components_dir / ".hacs.json"
@@ -420,9 +421,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     continue
 
                 prefix = (
-                    f"homey_{homey_id}_{device_id}_"
+                    f"{UNIQUE_ID_PREFIX}{homey_id}_{device_id}_"
                     if (multi_homey and homey_id)
-                    else f"homey_{device_id}_"
+                    else f"{UNIQUE_ID_PREFIX}{device_id}_"
                 )
                 if not entity_entry.unique_id.startswith(prefix):
                     continue
@@ -547,11 +548,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entity_registry = dr.async_get(hass)
             entity = entity_registry.async_get(entity_id_str)
             if entity and entity.platform == DOMAIN and entity.unique_id:
-                # Extract flow_id from unique_id format: "homey_{flow_id}_flow"
-                unique_id_parts = entity.unique_id.split("_")
-                if len(unique_id_parts) >= 3 and unique_id_parts[-1] == "flow":
-                    # Reconstruct flow_id (may contain underscores)
-                    flow_id = "_".join(unique_id_parts[1:-1])
+                flow_id = extract_unique_id_primary(
+                    entity.unique_id,
+                    "flow",
+                    homey_id=entry_data.get("homey_id"),
+                    multi_homey=entry_data.get("multi_homey", False),
+                )
+                if flow_id:
                     _LOGGER.debug("Extracted flow_id %s from entity %s", flow_id, entity_id_str)
             else:
                 # If entity not found, try to use entity_id as flow_name
@@ -562,10 +565,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Provide helpful error message with what was actually provided
             provided_data = {k: v for k, v in call.data.items() if v is not None and v != ""}
             _LOGGER.error(
-                "homey.trigger_flow service called without required parameters. "
+                "homey_hass.trigger_flow service called without required parameters. "
                 "Either 'entity_id', 'flow_id', or 'flow_name' must be provided. "
                 "Provided data: %s. "
-                "Example: service: homey.trigger_flow, data: {entity_id: 'button.sova'} or {flow_name: 'Sova'}",
+                "Example: service: homey_hass.trigger_flow, data: {entity_id: 'button.sova'} or {flow_name: 'Sova'}",
                 provided_data
             )
             return
@@ -808,13 +811,13 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             continue
         if not entity_entry.unique_id:
             continue
-        if not entity_entry.unique_id.startswith("homey_"):
+        if not entity_entry.unique_id.startswith(UNIQUE_ID_PREFIX):
             continue
-        if entity_entry.unique_id.startswith(f"homey_{homey_id}_"):
+        if entity_entry.unique_id.startswith(f"{UNIQUE_ID_PREFIX}{homey_id}_"):
             continue
 
-        suffix = entity_entry.unique_id[len("homey_"):]
-        new_unique_id = f"homey_{homey_id}_{suffix}"
+        suffix = entity_entry.unique_id[len(UNIQUE_ID_PREFIX):]
+        new_unique_id = f"{UNIQUE_ID_PREFIX}{homey_id}_{suffix}"
         conflict = any(
             ent.unique_id == new_unique_id and ent.config_entry_id == entry.entry_id
             for ent in entity_registry.entities.values()

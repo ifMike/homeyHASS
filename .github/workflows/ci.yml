@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check Python syntax/indentation
-        run: python -m compileall custom_components/homey
+        run: python -m compileall custom_components/homey_hass
 
   ruff:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
       - name: Install ruff
         run: python -m pip install --upgrade ruff
       - name: Run ruff checks
-        run: ruff check custom_components/homey tests
+        run: ruff check custom_components/homey_hass tests
 
   pytest:
     runs-on: ubuntu-latest
@@ -65,7 +65,7 @@ jobs:
       - name: Install mypy
         run: python -m pip install --upgrade mypy
       - name: Run type checks
-        run: mypy custom_components/homey
+        run: mypy custom_components/homey_hass
 
   pre-commit:
     runs-on: ubuntu-latest

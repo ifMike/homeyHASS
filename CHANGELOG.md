@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-06-19
+
+### BREAKING CHANGES
+
+**Read this before updating. This is a major release with no automatic upgrade path.**
+
+The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename is **required** before this integration can be included in the official HACS default repository.
+
+**If you are on version 1.x and your installation is working: do not update to 2.0.0 unless you are ready to migrate manually.** Stay on 1.2.6 until you have planned time for the steps below.
+
+#### What changes
+
+| Before (1.x) | After (2.0.0) |
+|--------------|---------------|
+| Domain `homey` | Domain `homey_hass` |
+| Folder `custom_components/homey/` | Folder `custom_components/homey_hass/` |
+| Services `homey.*` | Services `homey_hass.*` |
+| Display name **Homey** | Display name **Homey** (unchanged) |
+
+#### What breaks if you update without migrating
+
+- Existing config entries under domain `homey` stop loading.
+- All entities become unavailable until you set up the integration again.
+- Automations and scripts using `homey.*` services fail (must use `homey_hass.*`).
+- Dashboards may show unavailable entities; entity history may not carry over if entity IDs change.
+
+#### Migration steps (1.x → 2.0.0)
+
+1. **Create a Home Assistant backup.**
+2. Note your Homey **host/IP** and **API key**.
+3. **Settings → Devices & services → Homey** → delete the old config entry.
+4. Update to 2.0.0 via HACS (or install manually).
+5. Delete `custom_components/homey/` if it still exists.
+6. Ensure `custom_components/homey_hass/` is present.
+7. Restart Home Assistant.
+8. Add the **Homey** integration again and complete setup.
+9. Update automations/scripts: `homey.*` → `homey_hass.*`.
+10. Fix dashboards and remove orphaned unavailable entities if needed.
+
+#### New installations
+
+Install `custom_components/homey_hass/` and add the **Homey** integration normally. No migration needed.
+
 ## [1.2.6] - 2026-05-17
 
 ### Added

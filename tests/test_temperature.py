@@ -7,19 +7,19 @@ from pathlib import Path
 from types import SimpleNamespace
 
 _ROOT = Path(__file__).resolve().parents[1]
-_TEMPERATURE_PATH = _ROOT / "custom_components" / "homey" / "temperature.py"
-_CONST_PATH = _ROOT / "custom_components" / "homey" / "const.py"
+_TEMPERATURE_PATH = _ROOT / "custom_components" / "homey_hass" / "temperature.py"
+_CONST_PATH = _ROOT / "custom_components" / "homey_hass" / "const.py"
 
 
 def _load_temperature_module(path: Path):
     spec = importlib.util.spec_from_file_location(
-        "custom_components.homey.temperature",
+        "custom_components.homey_hass.temperature",
         path,
         submodule_search_locations=[str(path.parent)],
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    module.__package__ = "custom_components.homey"
+    module.__package__ = "custom_components.homey_hass"
     spec.loader.exec_module(module)
     return module
 
@@ -33,10 +33,10 @@ def _load_module(path: Path, name: str):
 
 
 _const = _load_module(_CONST_PATH, "homey_const_under_test")
-_homey_pkg = types.ModuleType("custom_components.homey")
+_homey_hass_pkg = types.ModuleType("custom_components.homey_hass")
 sys.modules.setdefault("custom_components", types.ModuleType("custom_components"))
-sys.modules["custom_components.homey"] = _homey_pkg
-sys.modules["custom_components.homey.const"] = _const
+sys.modules["custom_components.homey_hass"] = _homey_hass_pkg
+sys.modules["custom_components.homey_hass.const"] = _const
 _temp = _load_temperature_module(_TEMPERATURE_PATH)
 
 resolve_temperature_unit = _temp.resolve_temperature_unit

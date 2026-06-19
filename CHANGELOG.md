@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Read this before updating. This is a major release with no automatic upgrade path.**
 
-The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename is **required** before this integration can be included in the official HACS default repository.
+The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename is **required** for [HACS default catalog approval (PR #6696)](https://github.com/hacs/default/pull/6696) — the validation actions do not detect domain collisions against the full catalog, so the domain must be unique before merge.
 
 **If you are on version 1.x and your installation is working: do not update to 2.0.0 unless you are ready to migrate manually.** Stay on 1.2.6 until you have planned time for the steps below.
 
@@ -50,8 +50,18 @@ The integration domain was renamed from `homey` to `homey_hass` to resolve a con
 
 Install `custom_components/homey_hass/` and add the **Homey** integration normally. No migration needed.
 
+### Added
+- **Device temperature unit override** (from 1.2.6): Per-device Celsius/Fahrenheit when Homey metadata is wrong or missing (**Configure → Device temperature units**, or `homey_hass.set_device_temperature_unit` service).
+- **Temperature unit handling** (from 1.2.6): Climate and temperature sensors use Homey `units` metadata; display follows your HA region (**Settings → System → Home information**).
+
+### Changed
+- **Unique ID prefix**: Entity unique IDs now use `homey_hass_` instead of `homey_`.
+- **`trigger_flow` service**: Correctly parses flow entity unique IDs with the new domain prefix.
+
 ### Fixed
-- **Dyson fan capabilities**: `oscillate` is exposed on the fan entity; `less_air` and `more_air` are exposed as button entities. Stops false "new capability" alerts for these Dyson Air Multiplier controls.
+- **Dyson fan capabilities**: `oscillate` is exposed on the fan entity; `less_air` and `more_air` are exposed as button entities. Stops false "new capability" alerts for Dyson Air Multiplier devices.
+- **Capability alerts** (from 1.2.6): Notifications only fire for capabilities the integration does not already support.
+- **Thermostat temperatures** (from 1.2.6): Fixes incorrect display when drivers send Fahrenheit values but metadata says Celsius.
 
 ## [1.2.6] - 2026-05-17
 

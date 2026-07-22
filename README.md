@@ -10,7 +10,7 @@
 >
 > **If you are on version 1.x and your Homey integration is working today, do not update to 2.0.0 unless you are ready to migrate manually.** There is no automatic upgrade.
 >
-> Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required for official HACS default repository listing — the old domain conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The display name in Home Assistant stays **Homey**, but updating without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
+> Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required because the domain `homey` conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The integration is now in the **official HACS default catalog** — search for **Homey** in HACS without adding a custom repository. The display name in Home Assistant stays **Homey**, but updating from 1.x without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
 >
 > **Stay on the legacy HACS repo [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (v1.2.8+) until you can follow the [migration guide](#migrating-from-1x-to-200). That repository publishes **only 1.2.x updates** — you will not get HACS notifications for 2.x. **New users** should install **2.0.1** from this repository. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
 
@@ -148,12 +148,16 @@ Create an API key in Homey before installing:
 
 ### Installation via HACS (Recommended)
 
+The integration is listed in the **official HACS default catalog** ([hacs/default PR #6696](https://github.com/hacs/default/pull/6696)). No custom repository is required for new installs.
+
 1. Open **HACS** → **Integrations**
-2. Click the three dots menu → **Custom repositories**
-3. Add: `https://github.com/ifMike/homeyHASS` (Category: Integration)
-4. Search for **Homey** and click **Download**
+2. Click **+ Explore & download repositories** (or use the search field)
+3. Search for **Homey** (repository: [ifMike/homeyHASS](https://github.com/ifMike/homeyHASS))
+4. Click **Download**
 5. Restart Home Assistant
 6. Go to **Settings** → **Devices & Services** → **Add Integration** → Search for **Homey**
+
+**Already using a custom repository?** If you previously added `https://github.com/ifMike/homeyHASS` manually, that still works. You can remove it from **Custom repositories** now that the integration is in the default catalog — HACS will continue to track updates from the same GitHub repo.
 
 **Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available). **1.x users:** use [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) instead — see [Legacy 1.x (HACS)](#legacy-1x-hacs).
 
@@ -281,7 +285,7 @@ Your config entry, entities, and `homey.*` automations are unchanged.
 
 If you already see a **2.x update notification**, use **Skip update** on the HACS update entity until you switch repositories.
 
-When you are ready for 2.0.0, follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) and add **this** repository (`ifMike/homeyHASS`) back in HACS.
+When you are ready for 2.0.0, follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200). Install **2.x** from the default HACS catalog (search **Homey**) or this repository — no custom repository entry required.
 
 ---
 
@@ -289,7 +293,7 @@ When you are ready for 2.0.0, follow [Migrating from 1.x to 2.0.0](#migrating-fr
 
 ### Version 2.0.0 — breaking change
 
-**Do not update blindly.** Version 2.0.0 renames the integration domain from `homey` to `homey_hass`. This is required for listing in the official HACS default repository (the domain `homey` is already used by another integration). The UI name stays **Homey**, but the technical domain, install folder, and service namespace all change.
+**Do not update blindly.** Version 2.0.0 renames the integration domain from `homey` to `homey_hass`. This was required for listing in the official HACS default catalog (now live — search **Homey** in HACS without a custom repository). The UI name stays **Homey**, but the technical domain, install folder, and service namespace all change.
 
 | If you are… | What to do |
 |-------------|------------|
@@ -344,7 +348,7 @@ Only when you are ready to migrate:
 
 ### Why
 
-The domain `homey` conflicts with another HACS integration ([RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). Version 2.0.0 uses domain `homey_hass` so this integration can be added to the official HACS default repository. The display name **Homey** is unchanged.
+The domain `homey` conflicts with another HACS integration ([RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). Version 2.0.0 uses domain `homey_hass`, which is now listed in the **official HACS default catalog**. The display name **Homey** is unchanged.
 
 ### What you will lose without migration
 

@@ -6,6 +6,8 @@
 
 **Current stable release** for the `homey_hass` integration (folder `custom_components/homey_hass/`, services `homey_hass.*`).
 
+**Available in the official HACS default catalog** — search for **Homey** in HACS → Integrations. No custom repository required.
+
 ### Legacy 1.x users — read this first
 
 If you have a **working 1.x installation** (domain `homey`, folder `custom_components/homey/`) and do **not** want to migrate yet:
@@ -22,6 +24,7 @@ If you have a **working 1.x installation** (domain `homey`, folder `custom_compo
 - **Discovery hostname resolution**: Improved handling when resolving `.local` hostnames to IP addresses during setup.
 
 ### Documentation
+- **HACS default catalog**: Search **Homey** in HACS → Integrations — no custom repository required ([PR #6696](https://github.com/hacs/default/pull/6696)).
 - **Legacy 1.x HACS repository** documented in README for users who want bug fixes without the 2.0 domain migration.
 
 ### Permissions

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - **Legacy 1.x HACS repository**: Users staying on domain `homey` should use [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) in HACS to receive **only 1.2.x update notifications** (not 2.x from this repository). See [Legacy 1.x (HACS)](https://github.com/ifMike/homeyHASS#legacy-1x-hacs) in the README.
+- **HACS default catalog**: Listed in the official HACS default repository ([PR #6696](https://github.com/hacs/default/pull/6696)). New users can search **Homey** in HACS without a custom repository.
 
 ## [2.0.0] - 2026-06-19
 
@@ -22,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Read this before updating. This is a major release with no automatic upgrade path.**
 
-The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename is **required** for [HACS default catalog approval (PR #6696)](https://github.com/hacs/default/pull/6696) — the validation actions do not detect domain collisions against the full catalog, so the domain must be unique before merge.
+The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename was **required** for [HACS default catalog listing (PR #6696)](https://github.com/hacs/default/pull/6696), which merged July 2026 — the integration is now searchable in HACS without a custom repository.
 
 **If you are on version 1.x and your installation is working: do not update to 2.0.0 unless you are ready to migrate manually.** Use **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** in HACS for 1.2.x updates without 2.x notifications.
 

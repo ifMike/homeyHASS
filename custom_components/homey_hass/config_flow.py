@@ -247,13 +247,13 @@ async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
             sockaddr = entry[4]
             if len(sockaddr) == 2:  # IPv4: (host, port)
                 ip = sockaddr[0]
-                if ip and _is_ip_address(ip):
+                if isinstance(ip, str) and ip and _is_ip_address(ip):
                     return ip
         for entry in result:
             sockaddr = entry[4]
             if len(sockaddr) == 4:  # IPv6
                 ip = sockaddr[0]
-                if ip and _is_ip_address(ip):
+                if isinstance(ip, str) and ip and _is_ip_address(ip):
                     return ip
     except (OSError, asyncio.CancelledError):
         pass

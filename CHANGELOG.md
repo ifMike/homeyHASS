@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The integration domain was renamed from `homey` to `homey_hass` to resolve a conflict with the existing HACS default integration [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey). This rename is **required** for [HACS default catalog approval (PR #6696)](https://github.com/hacs/default/pull/6696) — the validation actions do not detect domain collisions against the full catalog, so the domain must be unique before merge.
 
-**If you are on version 1.x and your installation is working: do not update to 2.0.0 unless you are ready to migrate manually.** Use **[v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** on the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch for legacy bug fixes.
+**If you are on version 1.x and your installation is working: do not update to 2.0.0 unless you are ready to migrate manually.** Use **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** in HACS for 1.2.x updates without 2.x notifications.
 
 #### What changes
 

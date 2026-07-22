@@ -10,7 +10,7 @@
 
 If you are on **version 1.x** (domain `homey`, folder `custom_components/homey/`) and everything works today:
 
-- **Stay on 1.2.6** (or your current 1.x version) until you are ready to migrate manually.
+- **Stay on [v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** (legacy 1.x line, [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x)) until you are ready to migrate manually.
 - **Do not click Update** in HACS unless you have read this entire notice and planned time for migration.
 - There is **no in-place upgrade**. Updating without following the steps below will **break** your integration.
 

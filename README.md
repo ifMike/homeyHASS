@@ -12,7 +12,7 @@
 >
 > Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required for official HACS default repository listing — the old domain conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The display name in Home Assistant stays **Homey**, but updating without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
 >
-> **Stay on 1.2.6** until you can follow the [migration guide](#migrating-from-1x-to-200). **New users** should install 2.0.0 directly. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
+> **Stay on [v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** (legacy 1.x line on [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x)) until you can follow the [migration guide](#migrating-from-1x-to-200). **New users** should install 2.0.0 directly. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -268,7 +268,7 @@ All Homey devices appear under **Settings** → **Devices & Services** → **Hom
 
 | If you are… | What to do |
 |-------------|------------|
-| On **1.x** with a **working** setup | **Stay on 1.2.6** until you can migrate. Do **not** click Update in HACS yet. |
+| On **1.x** with a **working** setup | Install **[v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** from Releases or track [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x). Do **not** update to 2.0.0 until you can migrate. |
 | On **1.x** and ready to migrate | Follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) **before** updating. |
 | A **new user** | Install **2.0.0** normally — no migration needed. |
 

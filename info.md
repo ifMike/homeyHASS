@@ -1,20 +1,18 @@
-# Homey Integration for Home Assistant
+# Homey Integration for Home Assistant (Legacy 1.x)
 
-## Legacy 1.x release — v1.2.7
+## Dedicated legacy repository — v1.2.7
 
-This release is for **existing users on the 1.x line** (domain `homey`, folder `custom_components/homey/`) who want bug fixes without migrating to **2.0.0** (`homey_hass`).
+This is the **HACS repository for the 1.x line** (domain `homey`, folder `custom_components/homey/`). It publishes **only 1.2.x releases**, so you do not receive update notifications for 2.x from the main [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) repository.
 
-**Do not install this if you are already on 2.0.0.** New installations should use **2.0.0** on the `main` branch.
+### Who should use this repository
 
-### Who should use v1.2.7
+- You have a **working 1.x setup** (domain `homey`) and want bug fixes without migrating to 2.0.0.
+- You previously used `ifMike/homeyHASS` in HACS and want to **stop 2.x update notifications**.
 
-- You have a **working 1.x setup** today (domain `homey`) and want fixes only.
-- You are **not ready** to delete your config entry and re-setup under `homey_hass`.
+### Who should not use this repository
 
-### Who should not use v1.2.7
-
-- **New users** — install **2.0.0** instead.
-- Users who want the official HACS default listing path — that requires **2.0.0** on `main`.
+- **New users** — install from [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) (**2.0.0**, domain `homey_hass`) instead.
+- Users already on **2.0.0** — stay on the main repository.
 
 ---
 
@@ -28,20 +26,19 @@ This release is for **existing users on the 1.x line** (domain `homey`, folder `
 ### Added
 - Integration brand icon for HACS validation.
 
-### Included from 1.2.6
-- Device temperature unit override (`homey.set_device_temperature_unit` service).
-- Temperature unit handling from Homey metadata.
-- Capability alert and thermostat temperature display fixes.
-
-For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/release/1.x/CHANGELOG.md).
+For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS-legacy/blob/main/CHANGELOG.md).
 
 ---
 
-## Installation (1.x / v1.2.7)
+## HACS installation
 
-1. Install **v1.2.7** from [GitHub Releases](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7), or track the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch in HACS.
-2. Ensure the folder is `custom_components/homey/` (not `homey_hass`).
-3. Restart Home Assistant.
-4. Add or reload the **Homey** integration (domain `homey`).
+1. **HACS** → **Integrations** → three dots → **Custom repositories**
+2. Remove `https://github.com/ifMike/homeyHASS` if present (optional but recommended)
+3. Add `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
+4. Search **Homey** → **Download** → restart Home Assistant
 
-**Permissions** (unchanged from 1.2.6): Homey API key with **Local API** access — typically `homey.device.readonly` and `homey.device.control` (plus flow permissions if you use flows).
+If switching from the main repository, **Redownload** once from this repo (select **v1.2.7** or latest 1.2.x).
+
+**Permissions** (unchanged from 1.2.6): Homey API key with Local API access — typically `homey.device.readonly` and `homey.device.control` (plus flow permissions if you use flows).
+
+Issues: [ifMike/homeyHASS/issues](https://github.com/ifMike/homeyHASS/issues) (shared with the main project).

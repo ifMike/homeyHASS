@@ -1,17 +1,18 @@
 # Homey Integration for Home Assistant
 
-[![GitHub](https://img.shields.io/github/license/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/github/license/ifMike/homeyHASS-legacy)](https://github.com/ifMike/homeyHASS-legacy/blob/main/LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
-[![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS-legacy)](https://github.com/ifMike/homeyHASS-legacy/stargazers)
 
 **Version**: 1.2.7 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
 
-> ## Legacy 1.x line (domain `homey`)
+> ## Legacy 1.x repository (domain `homey`)
 >
-> This README describes the **1.x** release line (`custom_components/homey/`, domain `homey`). It is maintained for existing installations that work today and do not want the **2.0.0** breaking domain rename to `homey_hass`.
+> This repository is the **dedicated HACS source for the 1.x line** (`custom_components/homey/`, domain `homey`). It receives **only 1.2.x updates** — you will not get HACS notifications for 2.x releases from the main [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) repo.
 >
-> - **Existing 1.x users**: Install **[v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** (or track the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch). Do **not** update to 2.0.0 unless you are ready to migrate manually.
-> - **New users**: Use **[2.0.0 on `main`](https://github.com/ifMike/homeyHASS)** (domain `homey_hass`) for the current stable line and HACS default listing path.
+> - **Existing 1.x users**: Add **`https://github.com/ifMike/homeyHASS-legacy`** in HACS (see [Installation](#installation)). If you previously used `ifMike/homeyHASS`, remove that custom repository first.
+> - **New users**: Install **[2.0.0 from `ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS)** (domain `homey_hass`) instead.
+> - **Ready to migrate?** See the [2.0.0 migration guide](https://github.com/ifMike/homeyHASS#migrating-from-1x-to-200) on the main repository.
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -24,6 +25,7 @@ A Homey integration for Home Assistant that automatically discovers and connects
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
   - [Installation via HACS (Recommended)](#installation-via-hacs-recommended)
+  - [Switching from ifMike/homeyHASS](#switching-from-ifmikehomeyhass)
   - [Manual Installation](#manual-installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -145,16 +147,30 @@ Create an API key in Homey before installing:
 
 ### Installation via HACS (Recommended)
 
+Use **this repository** (`ifMike/homeyHASS-legacy`) in HACS so update notifications stay on the 1.2.x line only.
+
 1. Open **HACS** → **Integrations**
 2. Click the three dots menu → **Custom repositories**
-3. Add: `https://github.com/ifMike/homeyHASS` (Category: Integration)
+3. Add: `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
 4. Search for **Homey** and click **Download**
 5. Restart Home Assistant
 6. Go to **Settings** → **Devices & Services** → **Add Integration** → Search for **Homey**
 
-**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available)
+**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** when a new **1.2.x** release is available. You will not be offered 2.x versions from this repository.
 
-**Beta/Dev releases**: Click **Redownload** and select the version (e.g., `dev`) from the dropdown.
+### Switching from ifMike/homeyHASS
+
+If you previously added the main [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) repository in HACS, switch to this legacy repo to stop 2.x update notifications:
+
+1. **HACS** → **Integrations** → three dots → **Custom repositories**
+2. Remove `https://github.com/ifMike/homeyHASS` (keep your installed integration — do not delete the config entry)
+3. Add `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
+4. **HACS** → **Integrations** → **Homey Integration** → three dots → **Redownload** → select **v1.2.7** (or latest 1.2.x)
+5. Restart Home Assistant
+
+Your existing config entry, entities, and automations (`homey.*` services) are unchanged.
+
+**If you already see a 2.x update notification** from the old repository: use **Skip update** on the HACS update entity, or disable that update entity, until you complete the switch above.
 
 ### Manual Installation
 
@@ -162,7 +178,7 @@ Create an API key in Homey before installing:
 
 1. Download or clone this repository:
    ```bash
-   git clone https://github.com/ifMike/homeyHASS.git
+   git clone https://github.com/ifMike/homeyHASS-legacy.git
    ```
 
 2. Copy the `custom_components/homey` folder to your Home Assistant `custom_components` directory:
@@ -258,15 +274,17 @@ All Homey devices appear under **Settings** → **Devices & Services** → **Hom
 
 ## Updating
 
-**Via HACS**
+**Via HACS (this repository)**
 
 1. HACS → Integrations → Homey Integration
-2. Click **Update** if available
+2. Click **Update** when a new **1.2.x** release is available
 3. Restart Home Assistant
+
+Only 1.2.x versions are published in [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy). To move to 2.x later, follow the [migration guide on the main repository](https://github.com/ifMike/homeyHASS#migrating-from-1x-to-200).
 
 **Manual**
 
-1. Download the latest version from GitHub
+1. Download the latest **1.2.x** release from [GitHub Releases](https://github.com/ifMike/homeyHASS-legacy/releases)
 2. Replace the `custom_components/homey` folder
 3. Restart Home Assistant
 4. Reload the integration: Settings → Devices & Services → Homey → Configure → Reload

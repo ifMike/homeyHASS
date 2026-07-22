@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.7] - 2026-07-22
 
-Maintenance release for the **legacy 1.x line** (domain `homey`, folder `custom_components/homey/`). For users with a working 1.x installation who do not want the 2.0.0 domain migration to `homey_hass`. Available on the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch and as tag **v1.2.7**.
+Maintenance release for the **legacy 1.x line** (domain `homey`, folder `custom_components/homey/`). Published from the dedicated [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) repository so HACS users receive **only 1.2.x update notifications** (not 2.x from the main repo).
 
 ### Fixed
 - **Legacy Fibaro roller shutters**: Devices that expose position via `dim` instead of `windowcoverings_state` / `windowcoverings_set` (common on older Fibaro Z-Wave drivers) now create `cover.*` entities with open, close, stop, and set position support. Power and energy sensors continue to be created alongside the cover entity.

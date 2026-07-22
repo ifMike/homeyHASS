@@ -12,7 +12,7 @@
 >
 > Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required for official HACS default repository listing — the old domain conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The display name in Home Assistant stays **Homey**, but updating without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
 >
-> **Stay on the legacy HACS repo [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (v1.2.7+) until you can follow the [migration guide](#migrating-from-1x-to-200). That repository publishes **only 1.2.x updates** — you will not get HACS notifications for 2.x. **New users** should install 2.0.0 from this repository directly. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
+> **Stay on the legacy HACS repo [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (v1.2.8+) until you can follow the [migration guide](#migrating-from-1x-to-200). That repository publishes **only 1.2.x updates** — you will not get HACS notifications for 2.x. **New users** should install **2.0.1** from this repository. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -274,7 +274,7 @@ That repository publishes **only 1.2.x releases**. HACS will not offer 2.0.0 or 
 1. **HACS** → **Integrations** → three dots → **Custom repositories**
 2. Remove `https://github.com/ifMike/homeyHASS`
 3. Add `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
-4. **Homey Integration** → three dots → **Redownload** → **v1.2.7** (or latest 1.2.x)
+4. **Homey Integration** → three dots → **Redownload** → **v1.2.8** (or latest 1.2.x)
 5. Restart Home Assistant
 
 Your config entry, entities, and `homey.*` automations are unchanged.

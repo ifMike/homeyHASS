@@ -1,44 +1,43 @@
-# Homey Integration for Home Assistant (Legacy 1.x)
+## Version 1.2.8
 
-## Dedicated legacy repository — v1.2.7
-
-This is the **HACS repository for the 1.x line** (domain `homey`, folder `custom_components/homey/`). It publishes **only 1.2.x releases**, so you do not receive update notifications for 2.x from the main [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) repository.
+**Current release** for the legacy **1.x line** (domain `homey`, folder `custom_components/homey/`). Install from **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** in HACS — this repository publishes **only 1.2.x updates** (no 2.x notifications).
 
 ### Who should use this repository
 
-- You have a **working 1.x setup** (domain `homey`) and want bug fixes without migrating to 2.0.0.
+- You have a **working 1.x setup** (domain `homey`) and want bug fixes without migrating to 2.x.
 - You previously used `ifMike/homeyHASS` in HACS and want to **stop 2.x update notifications**.
 
 ### Who should not use this repository
 
-- **New users** — install from [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) (**2.0.0**, domain `homey_hass`) instead.
-- Users already on **2.0.0** — stay on the main repository.
+- **New users** — install from [`ifMike/homeyHASS`](https://github.com/ifMike/homeyHASS) (**2.0.1**, domain `homey_hass`) instead.
+- Users already on **2.0.x** — stay on the main repository.
 
 ---
 
-## What's New in 1.2.7
+## What's New in 1.2.8
 
-### Fixed
-- **Legacy Fibaro roller shutters**: Older Fibaro Z-Wave shutters that expose position via `dim` instead of `windowcoverings_*` now create `cover.*` entities with open, close, stop, and set position.
-- **Dyson fan capabilities**: `oscillate` on the fan entity; `less_air` and `more_air` as buttons. Stops false capability alerts on Dyson Air Multiplier devices.
-- **Discovery hostname resolution**: Improved handling when resolving `.local` hostnames to IP addresses.
+### Documentation
+- Full HACS instructions for this dedicated legacy repository, including switching from the main `ifMike/homeyHASS` repo without losing your config entry.
 
-### Added
-- Integration brand icon for HACS validation.
+### Included from 1.2.7
 
-For the full list of changes, see the [CHANGELOG](https://github.com/ifMike/homeyHASS-legacy/blob/main/CHANGELOG.md).
+- **Fibaro dim-based roller shutters** → `cover.*` entities
+- **Dyson fan** `oscillate`, `less_air`, `more_air`
+- **Discovery hostname resolution** fix
+- Integration brand icon
+
+For the full changelog, see [CHANGELOG](https://github.com/ifMike/homeyHASS-legacy/blob/main/CHANGELOG.md).
 
 ---
 
 ## HACS installation
 
 1. **HACS** → **Integrations** → three dots → **Custom repositories**
-2. Remove `https://github.com/ifMike/homeyHASS` if present (optional but recommended)
+2. Remove `https://github.com/ifMike/homeyHASS` if present
 3. Add `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
-4. Search **Homey** → **Download** → restart Home Assistant
+4. Search **Homey** → **Download** (or **Redownload** → **v1.2.8** when switching)
+5. Restart Home Assistant
 
-If switching from the main repository, **Redownload** once from this repo (select **v1.2.7** or latest 1.2.x).
-
-**Permissions** (unchanged from 1.2.6): Homey API key with Local API access — typically `homey.device.readonly` and `homey.device.control` (plus flow permissions if you use flows).
+**Permissions** (unchanged): Homey API key with Local API access — `homey.device.readonly`, `homey.device.control`, and `homey.system.readonly` (recommended for real-time updates).
 
 Issues: [ifMike/homeyHASS/issues](https://github.com/ifMike/homeyHASS/issues) (shared with the main project).

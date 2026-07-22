@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.8] - 2026-07-22
+
+Documentation release for the **legacy 1.x HACS repository** [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy). No functional changes from 1.2.7 — use this release if you are switching HACS from the main `ifMike/homeyHASS` repository to avoid 2.x update notifications.
+
+### Documentation
+- **Dedicated legacy HACS repository**: README and `info.md` now document installing and updating exclusively from `ifMike/homeyHASS-legacy`, including steps to remove the main repository from HACS and redownload.
+- **Switching guide**: Added instructions for moving from `ifMike/homeyHASS` to `ifMike/homeyHASS-legacy` without changing your config entry or entities.
+
 ## [1.2.7] - 2026-07-22
 
 Maintenance release for the **legacy 1.x line** (domain `homey`, folder `custom_components/homey/`). Published from the dedicated [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) repository so HACS users receive **only 1.2.x update notifications** (not 2.x from the main repo).

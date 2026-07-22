@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS-legacy)](https://github.com/ifMike/homeyHASS-legacy/stargazers)
 
-**Version**: 1.2.7 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.8 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
 
 > ## Legacy 1.x repository (domain `homey`)
 >
@@ -165,7 +165,7 @@ If you previously added the main [`ifMike/homeyHASS`](https://github.com/ifMike/
 1. **HACS** → **Integrations** → three dots → **Custom repositories**
 2. Remove `https://github.com/ifMike/homeyHASS` (keep your installed integration — do not delete the config entry)
 3. Add `https://github.com/ifMike/homeyHASS-legacy` (Category: Integration)
-4. **HACS** → **Integrations** → **Homey Integration** → three dots → **Redownload** → select **v1.2.7** (or latest 1.2.x)
+4. **HACS** → **Integrations** → **Homey Integration** → three dots → **Redownload** → select **v1.2.8** (or latest 1.2.x)
 5. Restart Home Assistant
 
 Your existing config entry, entities, and automations (`homey.*` services) are unchanged.

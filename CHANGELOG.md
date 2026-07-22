@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Legacy Fibaro roller shutters**: Devices that expose position via `dim` instead of `windowcoverings_state` / `windowcoverings_set` (common on older Fibaro Z-Wave drivers) now create `cover.*` entities with open, close, stop, and set position support. Power and energy sensors continue to be created alongside the cover entity.
+
 ## [2.0.0] - 2026-06-19
 
 ### BREAKING CHANGES

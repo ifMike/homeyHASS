@@ -153,6 +153,10 @@ If a light exposes `lightScenes.light`, it can also be controlled through the li
 
 Both `windowcoverings_state` and `windowcoverings_set` are supported.
 
+**Legacy Fibaro / dim-based shutters**
+
+Some older Fibaro Z-Wave roller shutters (and similar drivers) expose position through the `dim` capability (0–1) instead of `windowcoverings_state` or `windowcoverings_set`. When the Homey device class is a window covering (`blind`, `shutter`, `windowcoverings`, etc.) or the Fibaro driver indicates a roller/shutter, the integration creates a `cover.*` entity that maps open/close/position to `dim`.
+
 
 ---
 

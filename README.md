@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 2.0.0 | **Last Updated**: 2026-06-19 | [Changelog](CHANGELOG.md)
+**Version**: 2.0.1 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
 
 > ## ⚠️ Version 2.0.0 — Breaking change (read before updating)
 >
@@ -155,7 +155,7 @@ Create an API key in Homey before installing:
 5. Restart Home Assistant
 6. Go to **Settings** → **Devices & Services** → **Add Integration** → Search for **Homey**
 
-**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available). **See [Updating](#updating) — version 2.0.0 is a breaking change.**
+**Updating via HACS**: HACS → Integrations → Homey Integration → **Update** (when available). **1.x users:** use [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) instead — see [Legacy 1.x (HACS)](#legacy-1x-hacs).
 
 **Beta/Dev releases**: Click **Redownload** and select the version (e.g., `dev`) from the dropdown.
 
@@ -295,9 +295,17 @@ When you are ready for 2.0.0, follow [Migrating from 1.x to 2.0.0](#migrating-fr
 |-------------|------------|
 | On **1.x** with a **working** setup | Use HACS repo **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (not this repo). Remove `ifMike/homeyHASS` from HACS custom repositories if added. See [Legacy 1.x (HACS)](#legacy-1x-hacs). Do **not** update to 2.0.0 until you can migrate. |
 | On **1.x** and ready to migrate | Follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) **before** updating. |
-| A **new user** | Install **2.0.0** normally — no migration needed. |
+| A **new user** | Install **2.0.1** normally — no migration needed. |
+| On **2.0.x** already | HACS → **Update** to **2.0.1** → restart Home Assistant. |
 
-Updating from 1.x to 2.0.0 **without** migrating will break your integration (failed config entry, unavailable entities, broken automations).
+Updating from 1.x to 2.0.x **without** migrating will break your integration (failed config entry, unavailable entities, broken automations).
+
+### Via HACS (2.0.0 → 2.0.1)
+
+1. HACS → Integrations → Homey Integration → **Update**
+2. Restart Home Assistant
+
+No config migration required.
 
 ### Via HACS (1.x → 2.0.0)
 
@@ -308,7 +316,7 @@ Only when you are ready to migrate:
 3. Complete all migration steps (delete old config entry, remove old folder, re-add integration, fix automations).
 4. Restart Home Assistant
 
-### Via HACS (already on 2.0.0)
+### Via HACS (already on 2.0.x)
 
 1. HACS → Integrations → Homey Integration → **Update**
 2. Restart Home Assistant

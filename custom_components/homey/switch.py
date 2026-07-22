@@ -12,7 +12,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CAPABILITY_TO_PLATFORM, CONF_USE_CAPABILITY_TITLES, DOMAIN
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
-from .device_info import build_entity_unique_id, get_capability_label, get_device_info
+from .device_info import (
+    build_entity_unique_id,
+    get_capability_label,
+    get_device_info,
+    is_legacy_dim_cover,
+)
 from .button import is_maintenance_button
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,6 +127,11 @@ async def async_setup_entry(
         # Skip if this device should be a cover
         has_cover_capabilities = any(
             cap in capabilities for cap in ["windowcoverings_state", "windowcoverings_set", "garagedoor_closed"]
+        ) or is_legacy_dim_cover(
+            capabilities,
+            device_class,
+            driver_uri,
+            driver_id=driver_id,
         )
         # Skip if this device should be a media player
         has_media_capabilities = any(

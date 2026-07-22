@@ -40,3 +40,9 @@ def test_mapped_capability_is_supported() -> None:
 def test_unknown_capability_is_not_supported() -> None:
     assert not is_capability_supported("vendor_custom_metric")
     assert not is_capability_supported("test_capability")
+
+
+def test_dyson_fan_capabilities_are_supported() -> None:
+    assert is_capability_supported("oscillate")
+    assert is_capability_supported("less_air")
+    assert is_capability_supported("more_air")

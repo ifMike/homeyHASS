@@ -107,7 +107,11 @@ class HomeyFan(CoordinatorEntity, FanEntity):
         )
 
         capabilities = device.get("capabilitiesObj", {})
-        supported_features = FanEntityFeature.SET_SPEED if "fan_speed" in capabilities else 0
+        supported_features = FanEntityFeature(0)
+        if "fan_speed" in capabilities:
+            supported_features |= FanEntityFeature.SET_SPEED
+        if "oscillate" in capabilities:
+            supported_features |= FanEntityFeature.OSCILLATE
         # Note: Fans don't have ON_OFF feature - they're always on/off by default
         # The onoff capability is handled via is_on property and turn_on/turn_off methods
 
@@ -140,6 +144,15 @@ class HomeyFan(CoordinatorEntity, FanEntity):
             except (ValueError, TypeError):
                 return None
         return None
+
+    @property
+    def oscillating(self) -> bool | None:
+        """Return whether the fan is oscillating."""
+        device_data = self.coordinator.data.get(self._device_id, self._device)
+        capabilities = device_data.get("capabilitiesObj", {})
+        if "oscillate" not in capabilities:
+            return None
+        return bool(capabilities.get("oscillate", {}).get("value", False))
 
     async def async_turn_on(
         self,
@@ -177,4 +190,11 @@ class HomeyFan(CoordinatorEntity, FanEntity):
             )
             # Immediately refresh this device's state for instant UI feedback
             await self.coordinator.async_refresh_device(self._device_id)
+
+    async def async_oscillate(self, oscillating: bool) -> None:
+        """Oscillate the fan."""
+        if "oscillate" not in self._device.get("capabilitiesObj", {}):
+            return
+        await self._api.set_capability_value(self._device_id, "oscillate", oscillating)
+        await self.coordinator.async_refresh_device(self._device_id)
 

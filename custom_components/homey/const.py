@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 DOMAIN = "homey"
+UNIQUE_ID_PREFIX = "homey_"
 
 CONF_HOST = "host"
 CONF_TOKEN = "token"
@@ -82,6 +83,9 @@ CAPABILITY_TO_PLATFORM = {
     "alarm_water": "binary_sensor",
     "alarm_battery": "binary_sensor",
     "fan_speed": "fan",
+    "more_air": "button",
+    "less_air": "button",
+    "oscillate": "fan",
     "locked": "lock",
     "volume_set": "media_player",
     "volume_mute": "media_player",

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2026-07-22
+
+Maintenance release for the **legacy 1.x line** (domain `homey`, folder `custom_components/homey/`). For users with a working 1.x installation who do not want the 2.0.0 domain migration to `homey_hass`. Available on the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch and as tag **v1.2.7**.
+
+### Fixed
+- **Legacy Fibaro roller shutters**: Devices that expose position via `dim` instead of `windowcoverings_state` / `windowcoverings_set` (common on older Fibaro Z-Wave drivers) now create `cover.*` entities with open, close, stop, and set position support. Power and energy sensors continue to be created alongside the cover entity.
+- **Dyson fan capabilities**: `oscillate` is exposed on the fan entity; `less_air` and `more_air` are exposed as button entities. Stops false "new capability" alerts for Dyson Air Multiplier devices.
+- **Hostname resolution typing**: Safer handling of resolved IP addresses during discovery setup.
+
+### Added
+- **Integration brand icon**: Added `custom_components/homey/brand/icon.png` for HACS validation.
+
 ## [1.2.6] - 2026-05-17
 
 ### Added

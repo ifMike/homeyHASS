@@ -12,7 +12,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import HomeyDataUpdateCoordinator
-from .device_info import build_entity_unique_id, get_device_info
+from .device_info import (
+    build_entity_unique_id,
+    get_device_info,
+    has_standard_cover_capabilities,
+    is_legacy_dim_cover,
+    should_create_cover_entity,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,28 +61,34 @@ async def async_setup_entry(
                 list(capabilities.keys())
             )
         
-        # Special handling for devicegroups groups: respect their class
-        # If a group has cover-related class, treat it as a cover
-        is_devicegroups_cover = (
-            is_devicegroups_group 
-            and device_class in ["windowcoverings", "cover", "curtain", "blind", "shutter", "awning", "garagedoor"]
-        )
-        
-        # Support windowcoverings_state, windowcoverings_set, and garagedoor_closed capabilities
-        # Reference: https://apps.developer.homey.app/the-basics/devices/capabilities
-        # Note: Some devices use windowcoverings_set instead of windowcoverings_state
-        # Also support devicegroups groups with cover-related classes
-        has_cover_capabilities = any(
-            cap in capabilities for cap in ["windowcoverings_state", "windowcoverings_set", "garagedoor_closed"]
-        )
-        if has_cover_capabilities or is_devicegroups_cover:
+        # Support standard cover capabilities, devicegroups cover classes, and legacy
+        # Fibaro-style shutters that expose dim (0-1) instead of windowcoverings_*.
+        if should_create_cover_entity(
+            capabilities,
+            device_class,
+            device.get("driverUri"),
+            driver_id=driver_id,
+            is_devicegroups_group=is_devicegroups_group,
+        ):
             entities.append(HomeyCover(coordinator, device_id, device, api, zones, homey_id, multi_homey))
             if is_devicegroups_group:
                 _LOGGER.info(
-                    "Created cover entity for devicegroups group: %s (id: %s, has_cover_capabilities=%s)",
+                    "Created cover entity for devicegroups group: %s (id: %s)",
                     device_name,
                     device_id,
-                    has_cover_capabilities
+                )
+            elif is_legacy_dim_cover(
+                capabilities,
+                device_class,
+                device.get("driverUri"),
+                driver_id=driver_id,
+            ):
+                _LOGGER.info(
+                    "Created legacy dim-based cover entity: %s (id: %s, class: %s, capabilities: %s)",
+                    device_name,
+                    device_id,
+                    device_class,
+                    list(capabilities.keys()),
                 )
 
     async_add_entities(entities)
@@ -113,10 +125,22 @@ class HomeyCover(CoordinatorEntity, CoverEntity):
         # Some devices use windowcoverings_set instead of windowcoverings_state
         self._windowcoverings_state_cap = "windowcoverings_state" if "windowcoverings_state" in capabilities else None
         self._windowcoverings_set_cap = "windowcoverings_set" if "windowcoverings_set" in capabilities else None
-        self._has_windowcoverings = self._windowcoverings_state_cap or self._windowcoverings_set_cap
+        self._has_windowcoverings = bool(self._windowcoverings_state_cap or self._windowcoverings_set_cap)
         self._has_garagedoor = "garagedoor_closed" in capabilities
+        self._uses_dim_position = is_legacy_dim_cover(
+            capabilities,
+            device.get("class"),
+            device.get("driverUri"),
+            driver_id=device.get("driverId"),
+        )
         # Determine which capability to use for position control
-        self._position_cap = self._windowcoverings_set_cap or self._windowcoverings_state_cap
+        self._position_cap = (
+            self._windowcoverings_set_cap
+            or self._windowcoverings_state_cap
+            or ("dim" if self._uses_dim_position else None)
+        )
+        if self._uses_dim_position:
+            self._has_windowcoverings = True
         self._state_capability_data = (
             capabilities.get(self._windowcoverings_state_cap, {}) if self._windowcoverings_state_cap else {}
         )
@@ -147,6 +171,13 @@ class HomeyCover(CoordinatorEntity, CoverEntity):
             _LOGGER.debug(
                 "Device %s uses windowcoverings_set (numeric) - supports position control",
                 device_id
+            )
+        elif self._uses_dim_position:
+            self._supports_position = capabilities.get("dim", {}).get("setable", True) is not False
+            _LOGGER.debug(
+                "Device %s uses dim (legacy cover) - supports position control=%s",
+                device_id,
+                self._supports_position,
             )
         elif self._windowcoverings_state_cap and not self._is_enum_based:
             # Numeric windowcoverings_state supports position
@@ -204,50 +235,32 @@ class HomeyCover(CoordinatorEntity, CoverEntity):
         
         # Handle windowcoverings_state, windowcoverings_set, and garagedoor_closed
         if self._has_windowcoverings:
-            # Prefer windowcoverings_set for position if available
-            position_cap = capabilities.get(self._windowcoverings_set_cap) if self._windowcoverings_set_cap else None
-            if position_cap and position_cap.get("value") is not None:
-                try:
-                    position_value = float(position_cap.get("value"))
-                    return int(position_value * 100)
-                except (ValueError, TypeError):
-                    _LOGGER.warning(
-                        "Invalid %s value for device %s: %s",
-                        self._windowcoverings_set_cap,
-                        self._device_id,
-                        position_cap.get("value"),
-                    )
-
-            state_cap = capabilities.get(self._windowcoverings_state_cap) if self._windowcoverings_state_cap else None
-            if not state_cap:
-                return None
-            
-            state = state_cap.get("value")
-            if state is None:
-                return None
-            
-            # Handle enum-based windowcoverings_state (up/idle/down)
-            if state_cap.get("type") == "enum" or state_cap.get("values"):
-                # Map enum states to positions: "up" = 100%, "down" = 0%, "idle" = 50%
-                if state == "up":
-                    return 100
-                elif state == "down":
-                    return 0
-                elif state == "idle":
-                    return None
-                else:
-                    # Unknown enum value, return None
-                    return None
-            
-            # Handle numeric position (0-1 range)
-            try:
-                # Convert state (0-1) to percentage (0-100)
-                # windowcoverings_set uses 0-1 range, numeric windowcoverings_state also uses 0-1
-                state_float = float(state)
-                return int(state_float * 100)
-            except (ValueError, TypeError):
-                _LOGGER.warning("Invalid %s value for device %s: %s", self._windowcoverings_cap, self._device_id, state)
-                return None
+            if self._position_cap:
+                position_cap_data = capabilities.get(self._position_cap)
+                if position_cap_data and position_cap_data.get("value") is not None:
+                    if (
+                        self._position_cap == self._windowcoverings_state_cap
+                        and self._is_enum_based
+                    ):
+                        state = position_cap_data.get("value")
+                        if state == "up":
+                            return 100
+                        if state == "down":
+                            return 0
+                        if state == "idle":
+                            return None
+                        return None
+                    try:
+                        position_value = float(position_cap_data.get("value"))
+                        return int(position_value * 100)
+                    except (ValueError, TypeError):
+                        _LOGGER.warning(
+                            "Invalid %s value for device %s: %s",
+                            self._position_cap,
+                            self._device_id,
+                            position_cap_data.get("value"),
+                        )
+            return None
         elif self._has_garagedoor:
             # Garage door: closed = True means closed (position 0), False means open (position 100)
             garagedoor_cap = capabilities.get("garagedoor_closed")
@@ -286,7 +299,9 @@ class HomeyCover(CoordinatorEntity, CoverEntity):
         
         # Check if device has cover capabilities
         capabilities = device_data.get("capabilitiesObj", {})
-        return any(cap in capabilities for cap in ["windowcoverings_state", "windowcoverings_set", "garagedoor_closed"])
+        return has_standard_cover_capabilities(capabilities) or (
+            self._uses_dim_position and "dim" in capabilities
+        )
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""

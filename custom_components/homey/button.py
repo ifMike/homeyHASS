@@ -10,9 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import CAPABILITY_TO_PLATFORM, DOMAIN, UNIQUE_ID_PREFIX, capability_base
 from .coordinator import HomeyDataUpdateCoordinator
-from .device_info import build_entity_unique_id, get_device_info
+from .device_info import build_entity_unique_id, format_capability_label, get_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ async def async_setup_entry(
             # Also check unique_id for maintenance button patterns
             # Format: "homey_{device_id}_{capability_id}"
             # Example: "homey_011cf5be-2522-45b5-b40f-0fdbfab64fb4_button.migrate_v3"
-            if unique_id and unique_id.startswith("homey_") and "_button" in unique_id:
+            if unique_id and unique_id.startswith(UNIQUE_ID_PREFIX) and "_button" in unique_id:
                 # Check unique_id for maintenance keywords
                 if any(keyword in unique_id_lower for keyword in maintenance_keywords):
                     entity_registry.async_remove(entity_entry.entity_id)
@@ -105,12 +105,12 @@ async def async_setup_entry(
                     # Split at "_button" to separate device_id from capability_id
                     parts = unique_id.split("_button", 1)
                     if len(parts) == 2:
-                        device_id_with_prefix = parts[0]  # "homey_{uuid}"
+                        device_id_with_prefix = parts[0]
                         capability_suffix = parts[1]  # ".migrate_v3"
                         
-                        # Extract device_id (remove "homey_" prefix)
-                        if device_id_with_prefix.startswith("homey_"):
-                            device_id = device_id_with_prefix[6:]  # Remove "homey_"
+                        # Extract device_id (remove integration prefix)
+                        if device_id_with_prefix.startswith(UNIQUE_ID_PREFIX):
+                            device_id = device_id_with_prefix[len(UNIQUE_ID_PREFIX):]
                             capability_id = f"button{capability_suffix}"  # "button.migrate_v3"
                             
                             # Check if device exists and capability is maintenance
@@ -187,6 +187,8 @@ async def async_setup_entry(
                 capability_id.endswith("_button.park") or
                 capability_id.endswith("_button.start") or
                 (capability_id.startswith("gardena_button.") and capability_obj.get("setable"))
+                or CAPABILITY_TO_PLATFORM.get(capability_id) == "button"
+                or CAPABILITY_TO_PLATFORM.get(capability_base(capability_id)) == "button"
             )
             
             if is_button:
@@ -277,12 +279,16 @@ class HomeyDeviceButton(CoordinatorEntity, ButtonEntity):
         
         # Create button name
         device_name = device.get("name", "Unknown Device")
+        capability_obj = device.get("capabilitiesObj", {}).get(capability_id, {})
         if capability_id == "button":
             button_name = f"{device_name} Button"
-        else:
+        elif capability_id.startswith("button."):
             # Extract button number (e.g., "button.1" -> "1")
             button_num = capability_id.replace("button.", "")
             button_name = f"{device_name} Button {button_num}"
+        else:
+            label = capability_obj.get("title") or format_capability_label(capability_id)
+            button_name = f"{device_name} {label}"
         
         self._attr_name = button_name
         self._attr_unique_id = build_entity_unique_id(

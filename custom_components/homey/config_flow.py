@@ -247,13 +247,13 @@ async def _async_resolve_hostname_to_ip(hostname: str) -> str | None:
             sockaddr = entry[4]
             if len(sockaddr) == 2:  # IPv4: (host, port)
                 ip = sockaddr[0]
-                if ip and _is_ip_address(ip):
+                if isinstance(ip, str) and ip and _is_ip_address(ip):
                     return ip
         for entry in result:
             sockaddr = entry[4]
             if len(sockaddr) == 4:  # IPv6
                 ip = sockaddr[0]
-                if ip and _is_ip_address(ip):
+                if isinstance(ip, str) and ip and _is_ip_address(ip):
                     return ip
     except (OSError, asyncio.CancelledError):
         pass
@@ -527,7 +527,7 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             else:
                 host = ""
 
-        await self.async_set_unique_id(hostname or host or "homey")
+        await self.async_set_unique_id(hostname or host or DOMAIN)
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
         # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
         self._abort_if_unique_id_configured()

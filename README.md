@@ -4,7 +4,14 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 1.2.6 | **Last Updated**: 2026-05-17 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.7 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
+
+> ## Legacy 1.x line (domain `homey`)
+>
+> This README describes the **1.x** release line (`custom_components/homey/`, domain `homey`). It is maintained for existing installations that work today and do not want the **2.0.0** breaking domain rename to `homey_hass`.
+>
+> - **Existing 1.x users**: Install **[v1.2.7](https://github.com/ifMike/homeyHASS/releases/tag/v1.2.7)** (or track the [`release/1.x`](https://github.com/ifMike/homeyHASS/tree/release/1.x) branch). Do **not** update to 2.0.0 unless you are ready to migrate manually.
+> - **New users**: Use **[2.0.0 on `main`](https://github.com/ifMike/homeyHASS)** (domain `homey_hass`) for the current stable line and HACS default listing path.
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 

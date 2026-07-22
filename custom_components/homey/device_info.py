@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .const import DOMAIN
+from .const import DOMAIN, UNIQUE_ID_PREFIX
 def build_device_identifier(
     homey_id: str | None, device_id: str, multi_homey: bool = False
 ) -> tuple[str, str]:
@@ -22,8 +22,28 @@ def build_entity_unique_id(
 ) -> str:
     """Build a unique entity ID scoped to a Homey hub."""
     if multi_homey and homey_id:
-        return f"homey_{homey_id}_{primary_id}_{suffix}"
-    return f"homey_{primary_id}_{suffix}"
+        return f"{UNIQUE_ID_PREFIX}{homey_id}_{primary_id}_{suffix}"
+    return f"{UNIQUE_ID_PREFIX}{primary_id}_{suffix}"
+
+
+def extract_unique_id_primary(
+    unique_id: str,
+    suffix: str,
+    *,
+    homey_id: str | None = None,
+    multi_homey: bool = False,
+) -> str | None:
+    """Extract the primary ID from a unique_id ending with _{suffix}."""
+    if not unique_id.startswith(UNIQUE_ID_PREFIX):
+        return None
+    tail = f"_{suffix}"
+    body = unique_id[len(UNIQUE_ID_PREFIX) :]
+    if not body.endswith(tail):
+        return None
+    middle = body[: -len(tail)]
+    if multi_homey and homey_id and middle.startswith(f"{homey_id}_"):
+        middle = middle[len(homey_id) + 1 :]
+    return middle or None
 
 
 def extract_device_id(identifier: tuple[str, str]) -> str | None:
@@ -47,6 +67,92 @@ def split_device_identifier(identifier: tuple[str, str]) -> tuple[str | None, st
     return None, value
 
 _LOGGER = logging.getLogger(__name__)
+
+WINDOW_COVERING_DEVICE_CLASSES = frozenset({
+    "windowcoverings",
+    "cover",
+    "curtain",
+    "blind",
+    "shutter",
+    "awning",
+    "garagedoor",
+})
+
+STANDARD_COVER_CAPABILITIES = frozenset({
+    "windowcoverings_state",
+    "windowcoverings_set",
+    "garagedoor_closed",
+    "windowcoverings_closed",
+})
+
+LIGHT_ONLY_CAPABILITIES = frozenset({
+    "light_hue",
+    "light_saturation",
+    "light_temperature",
+    "lightScenes",
+})
+
+
+def has_standard_cover_capabilities(capabilities: dict[str, Any]) -> bool:
+    """Return True when the device exposes standard Homey cover capabilities."""
+    return bool(set(capabilities.keys()) & STANDARD_COVER_CAPABILITIES)
+
+
+def is_legacy_dim_cover(
+    capabilities: dict[str, Any],
+    device_class: str | None = None,
+    driver_uri: str | None = None,
+    *,
+    driver_id: str | None = None,
+) -> bool:
+    """Return True when a window covering uses dim (0-1) instead of windowcoverings_*."""
+    if has_standard_cover_capabilities(capabilities):
+        return False
+    if "dim" not in capabilities:
+        return False
+    if capabilities.get("dim", {}).get("setable") is False:
+        return False
+
+    caps = set(capabilities.keys())
+    if caps & LIGHT_ONLY_CAPABILITIES or any(cap.startswith("lightScenes") for cap in caps):
+        return False
+
+    device_class_lower = (device_class or "").lower()
+    if device_class_lower in WINDOW_COVERING_DEVICE_CLASSES:
+        return True
+
+    driver_lower = (driver_uri or "").lower()
+    driver_id_lower = (driver_id or "").lower()
+    if "fibaro" in driver_lower or "fibaro" in driver_id_lower:
+        shutter_tokens = ("fgr", "fgw", "roller", "shutter", "blind")
+        if any(token in driver_lower or token in driver_id_lower for token in shutter_tokens):
+            return True
+
+    return False
+
+
+def should_create_cover_entity(
+    capabilities: dict[str, Any],
+    device_class: str | None,
+    driver_uri: str | None = None,
+    *,
+    driver_id: str | None = None,
+    is_devicegroups_group: bool = False,
+) -> bool:
+    """Return True when the integration should create a cover entity for this device."""
+    if has_standard_cover_capabilities(capabilities):
+        return True
+    if (
+        is_devicegroups_group
+        and (device_class or "").lower() in WINDOW_COVERING_DEVICE_CLASSES
+    ):
+        return True
+    return is_legacy_dim_cover(
+        capabilities,
+        device_class,
+        driver_uri,
+        driver_id=driver_id,
+    )
 
 
 def format_capability_label(capability_id: str) -> str:
@@ -124,8 +230,10 @@ def get_device_type(capabilities: dict[str, Any], driver_uri: str | None = None,
             "camera": "device",  # Cameras don't have a direct HA equivalent
             "doorbell": "binary_sensor",  # Doorbells are typically binary sensors
         }
-        # Check if it's a cover first (windowcoverings_state, windowcoverings_set, or garagedoor_closed takes precedence over class)
-        if any(cap in caps for cap in ["windowcoverings_state", "windowcoverings_set", "garagedoor_closed"]):
+        # Check if it's a cover first (standard or legacy dim-based window coverings)
+        if has_standard_cover_capabilities(capabilities) or is_legacy_dim_cover(
+            capabilities, device_class, driver_uri
+        ):
             return "cover"
         # Map known classes
         if device_class in class_mapping:
@@ -138,11 +246,12 @@ def get_device_type(capabilities: dict[str, Any], driver_uri: str | None = None,
         # Unknown device class - log for debugging but continue with capability-based detection
         _LOGGER.debug("Unknown device class '%s' - using capability-based detection", device_class)
     
-    # PRIORITY 1: Cover devices (windowcoverings_state, windowcoverings_set, garagedoor_closed)
+    # PRIORITY 1: Cover devices (standard or legacy dim-based window coverings)
     # This must come FIRST because covers can also have metering (measure_power)
     # Reference: https://apps.developer.homey.app/the-basics/devices/capabilities
-    # Note: Some devices use windowcoverings_set instead of windowcoverings_state
-    if any(cap in caps for cap in ["windowcoverings_state", "windowcoverings_set", "garagedoor_closed"]):
+    if has_standard_cover_capabilities(capabilities) or is_legacy_dim_cover(
+        capabilities, device_class, driver_uri
+    ):
         return "cover"
     
     # PRIORITY 2: Light devices
@@ -199,8 +308,10 @@ def get_device_type(capabilities: dict[str, Any], driver_uri: str | None = None,
                 return "light"
         
         # Fibaro switches/outlets - should be switches if they have onoff
-        # Note: Roller shutters already handled above (windowcoverings_state)
+        # Note: Roller shutters already handled above (windowcoverings_* or legacy dim)
         if "fibaro" in driver_lower:
+            if is_legacy_dim_cover(capabilities, device_class, driver_uri):
+                return "cover"
             if "onoff" in caps or any(cap.startswith("onoff.") for cap in caps):
                 return "switch"
         

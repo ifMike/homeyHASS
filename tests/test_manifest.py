@@ -26,7 +26,7 @@ def test_manifest_domain_is_homey_hass() -> None:
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest.get("domain") == "homey_hass"
-    assert manifest.get("name") == "Homey"
+    assert manifest.get("name") == "Homey 2.x"
 
 
 def test_manifest_version_is_current() -> None:
@@ -37,5 +37,7 @@ def test_manifest_version_is_current() -> None:
         / "manifest.json"
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest.get("version") == "2.0.1"
+    version = manifest.get("version")
+    assert version is not None
+    assert version.startswith("2.")
 

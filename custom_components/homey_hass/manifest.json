@@ -1,6 +1,6 @@
 {
   "domain": "homey_hass",
-  "name": "Homey",
+  "name": "Homey 2.x",
   "codeowners": [
     "@ifmike"
   ],
@@ -22,7 +22,7 @@
     "aiohttp>=3.8.0",
     "python-socketio>=5.0.0"
   ],
-  "version": "2.0.1",
+  "version": "2.1.0",
   "zeroconf": [
     "_homey._tcp.local."
   ]

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-08-11
+
+### Added
+- **Guided 1.x → 2.x migration assistant**: When Homey 1.x is still configured, adding Homey offers **Migrate from Homey 1.x** to copy connection settings, preserve entity IDs, restore device areas, and optionally remove the old integration. **New installations never see migration screens.**
+- **Options flow migration**: **Configure → Migrate from Homey 1.x** for users who added 2.x manually but still have the legacy integration.
+- **Startup reminder**: One-time notification when 1.x is configured, 2.x files are installed, and no 2.x config entry exists yet.
+
+### Fixed
+- **Device registry compatibility** on newer Home Assistant (uses `DeviceEntry.config_entries` instead of deprecated `config_entry_id`).
+- **Migration resilience**: Migration step failures are logged but no longer prevent the integration from loading.
+- **Discovery deduplication**: Multiple DHCP/Zeroconf discoveries for the same hub no longer create duplicate setup flows.
+- **Config flow migration UI**: Select-based forms with English fallbacks fix blank menu buttons in custom integrations.
+
+### Changed
+- Integration display name is **Homey 2.x** (not plain **Homey**) so it is distinguishable from legacy 1.x while both can be installed during migration.
+
+### Migration
+
+**New users:** install normally — no migration steps.
+
+**1.x users:** follow the step-by-step guide in the README: [Migrating from 1.x to 2.x](https://github.com/ifMike/homeyHASS#migrating-from-1x-to-2x).
+
+**2.0.x users:** update and restart — no migration steps.
+
 ## [2.0.1] - 2026-07-22
 
 ### Fixed

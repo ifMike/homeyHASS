@@ -35,6 +35,28 @@
         "title": "Manage Devices",
         "description": "Select which devices to include in Home Assistant. Currently selected devices are pre-checked. You can add or remove devices as needed. Changes will be applied after saving.\n\n💡 Tip: Use your browser's search (Ctrl+F / Cmd+F) to quickly find devices by name, room, or type.",
         "data": {}
+      },
+      "migration_offer": {
+        "title": "Upgrade from Homey 1.x",
+        "description": "We found your existing **Homey 1.x** integration.\n\nChoose **Migrate from Homey 1.x** to copy your connection settings, keep entity IDs, and remove the old integration automatically.\n\nChoose **Set up as new installation** if you want a fresh setup without importing from 1.x.\n\n💡 Tip: Create a Home Assistant backup before migrating.",
+        "data": {
+          "next_step": "What would you like to do?"
+        }
+      },
+      "migrate_from_legacy": {
+        "title": "Select Homey 1.x hub",
+        "description": "Multiple Homey 1.x integrations were found. Select which one to migrate.",
+        "data": {
+          "legacy_entry": "Homey 1.x integration"
+        }
+      },
+      "migrate_confirm": {
+        "title": "Confirm migration",
+        "description": "Ready to migrate **{name}** ({host}).\n\nDevices: {devices}\n\nThis will create the **Homey 2.x** integration using your existing settings.",
+        "data": {
+          "preserve_entity_ids": "Keep my entity IDs (recommended — preserves dashboards and automations)",
+          "remove_legacy_entry": "Remove the old Homey 1.x integration when done"
+        }
       }
     },
     "error": {
@@ -45,6 +67,7 @@
     },
     "abort": {
       "already_configured": "This Homey hub is already configured.",
+      "already_in_progress": "Another Homey setup is already in progress. Close other setup dialogs, wait a minute, and try again.",
       "reauth_successful": "Reauthentication successful.",
       "unsupported_model": "This Homey model does not support the Local API. Requires Pro 2023 or later."
     }
@@ -56,7 +79,9 @@
         "description": "Choose what you want to update.",
         "menu_options": {
           "settings": "Connection & Polling",
-          "device_management": "Manage Devices"
+          "device_management": "Manage Devices",
+          "temperature_units": "Device temperature units",
+          "migrate_from_legacy": "Migrate from Homey 1.x"
         }
       },
       "settings": {
@@ -78,8 +103,19 @@
         "data": {
           "device_filter": "Devices"
         }
+      },
+      "migrate_from_legacy": {
+        "title": "Migrate from Homey 1.x",
+        "description": "Copy entity IDs and device areas from your existing Homey 1.x integration to this entry.\n\nUse this if you already added Homey manually but still have the old 1.x integration.",
+        "data": {
+          "legacy_entry": "Homey 1.x integration",
+          "preserve_entity_ids": "Keep my entity IDs (recommended)",
+          "remove_legacy_entry": "Remove the old Homey 1.x integration when done"
+        }
       }
+    },
+    "error": {
+      "no_legacy_entry": "No Homey 1.x integration was found. It may already have been removed."
     }
   }
 }
-

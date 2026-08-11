@@ -115,7 +115,14 @@ ALLOWED_HOMEY_SUBSTRINGS = (
     "new Homey",
     "single Homey",
     "duplicate Homey",
-    "Migrating Homey",
+    "LEGACY_DOMAIN",
+    "LEGACY_UNIQUE_ID_PREFIX",
+    "custom_components/homey/",
+    "Homey 1.x",
+    "legacy Homey",
+    "Migrate from Homey",
+    "migrate_from_legacy",
+    "migration.py",
     "Rescoping Homey",
     "Disabled Homey",
     "Failed Homey",
@@ -260,7 +267,7 @@ def test_integration_folder_matches_manifest_domain() -> None:
 
 def test_display_name_unchanged() -> None:
     manifest = _load_manifest()
-    assert manifest["name"] == "Homey"
+    assert manifest["name"] == "Homey 2.x"
 
 
 def test_const_domain_and_unique_id_prefix() -> None:

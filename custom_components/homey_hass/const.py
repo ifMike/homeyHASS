@@ -4,6 +4,14 @@ from __future__ import annotations
 DOMAIN = "homey_hass"
 UNIQUE_ID_PREFIX = "homey_hass_"
 
+# Homey integration 1.x (legacy domain before 2.0 rename)
+LEGACY_DOMAIN = "homey"
+LEGACY_UNIQUE_ID_PREFIX = "homey_"
+
+CONF_MIGRATE_FROM_LEGACY_ENTRY_ID = "migrate_from_legacy_entry_id"
+CONF_REMOVE_LEGACY_ENTRY = "remove_legacy_entry"
+CONF_PRESERVE_ENTITY_IDS = "preserve_entity_ids"
+
 CONF_HOST = "host"
 CONF_TOKEN = "token"
 CONF_DEVICE_FILTER = "device_filter"

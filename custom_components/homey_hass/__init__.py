@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -22,6 +22,7 @@ from .const import (
     CONF_DEVICE_FILTER,
     CONF_POLL_INTERVAL,
     CONF_RECOVERY_COOLDOWN,
+    CONF_MIGRATE_FROM_LEGACY_ENTRY_ID,
     SERVICE_TEST_CAPABILITY_REPORT,
     SERVICE_SET_DEVICE_TEMPERATURE_UNIT,
     CONF_TEMPERATURE_UNIT_OVERRIDES,
@@ -32,6 +33,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_device_identifier, extract_device_id, extract_unique_id_primary
+from .migration import async_run_legacy_migration, build_migration_success_message, get_legacy_config_entries
 from .homey_api import HomeyAPI
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +83,27 @@ def _check_installation_conflict() -> None:
 
 # Run check on module load
 _check_installation_conflict()
+
+
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up the Homey integration."""
+
+    async def _notify_legacy_installation(_event) -> None:
+        """Remind 1.x users who installed 2.x files but have not migrated yet."""
+        if get_legacy_config_entries(hass) and not hass.config_entries.async_entries(DOMAIN):
+            persistent_notification.async_create(
+                hass,
+                "You still have **Homey 1.x** configured and the new 2.x integration installed.\n\n"
+                "**Settings → Devices & services → Add integration → Homey 2.x** → "
+                "**Migrate from Homey 1.x**.\n\n"
+                "Create a backup first. See the "
+                "[migration guide](https://github.com/ifMike/homeyHASS#migrating-from-1x-to-2x).",
+                title="Homey: 1.x → 2.x migration available",
+                notification_id=f"{DOMAIN}_legacy_migration_available",
+            )
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _notify_legacy_installation)
+    return True
 
 
 def filter_devices(devices: dict[str, dict[str, Any]], device_filter: list[str] | None) -> dict[str, dict[str, Any]]:
@@ -516,6 +539,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Forward the setup to the platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    if entry.data.get(CONF_MIGRATE_FROM_LEGACY_ENTRY_ID):
+        migration_result = await async_run_legacy_migration(hass, entry)
+        persistent_notification.async_create(
+            hass,
+            build_migration_success_message(migration_result),
+            title="Homey: Migration complete",
+            notification_id=f"{DOMAIN}_migration_complete_{entry.entry_id}",
+        )
 
     # Refresh zones and assign areas to devices based on Homey zones (after entities are created)
     coordinator.zones = await api.get_zones() or {}

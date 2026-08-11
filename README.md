@@ -4,15 +4,16 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 2.0.1 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
+**Version**: 2.1.0 | **Last Updated**: 2026-08-11 | [Changelog](CHANGELOG.md)
 
-> ## ⚠️ Version 2.0.0 — Breaking change (read before updating)
+> ### New installation?
+> Search **Homey** in HACS and add **Homey 2.x**. **No migration steps apply.**
 >
-> **If you are on version 1.x and your Homey integration is working today, do not update to 2.0.0 unless you are ready to migrate manually.** There is no automatic upgrade.
+> ### Upgrading from 1.x?
+> Use the **guided migration assistant** in 2.1.0 — see [Migrating from 1.x](#migrating-from-1x-to-2x).
 >
-> Version 2.0.0 renames the integration domain from `homey` to `homey_hass` (required because the domain `homey` conflicts with [RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). The integration is now in the **official HACS default catalog** — search for **Homey** in HACS without adding a custom repository. The display name in Home Assistant stays **Homey**, but updating from 1.x without migrating will **break** your setup: config entry stops loading, entities go unavailable, and `homey.*` services stop working.
->
-> **Stay on the legacy HACS repo [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (v1.2.8+) until you can follow the [migration guide](#migrating-from-1x-to-200). That repository publishes **only 1.2.x updates** — you will not get HACS notifications for 2.x. **New users** should install **2.0.1** from this repository. See also [Updating](#updating) and [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
+> ### Staying on 1.x for now?
+> Use the legacy HACS repo [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy) (v1.2.x only). Do not update to 2.x from this repository until you are ready to migrate.
 
 A Homey integration for Home Assistant that automatically discovers and connects all your Homey devices, making them available natively in Home Assistant.
 
@@ -30,7 +31,7 @@ A Homey integration for Home Assistant that automatically discovers and connects
 - [Usage](#usage)
 - [Legacy 1.x (HACS)](#legacy-1x-hacs)
 - [Updating](#updating)
-- [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200)
+- [Migrating from 1.x to 2.x](#migrating-from-1x-to-2x)
 - [Error Messages](#error-messages)
 - [Troubleshooting](#troubleshooting)
 - [Supported Devices](#supported-devices)
@@ -204,7 +205,7 @@ The integration is listed in the **official HACS default catalog** ([hacs/defaul
 
 **Migrating from manual to HACS (same version)**: Delete the `custom_components/homey_hass` folder, restart Home Assistant, then install via HACS. Your configuration is preserved.
 
-**Migrating from 1.x to 2.0.0**: This is a breaking change — configuration is **not** preserved automatically. See [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200).
+**Migrating from 1.x?** See [Migrating from 1.x to 2.x](#migrating-from-1x-to-2x). New installations do not need migration.
 
 
 ---
@@ -285,44 +286,43 @@ Your config entry, entities, and `homey.*` automations are unchanged.
 
 If you already see a **2.x update notification**, use **Skip update** on the HACS update entity until you switch repositories.
 
-When you are ready for 2.0.0, follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200). Install **2.x** from the default HACS catalog (search **Homey**) or this repository — no custom repository entry required.
+When you are ready for 2.x, follow [Migrating from 1.x to 2.x](#migrating-from-1x-to-2x). Install from the default HACS catalog (search **Homey**) or this repository.
 
 ---
 
 ## Updating
 
-### Version 2.0.0 — breaking change
-
-**Do not update blindly.** Version 2.0.0 renames the integration domain from `homey` to `homey_hass`. This was required for listing in the official HACS default catalog (now live — search **Homey** in HACS without a custom repository). The UI name stays **Homey**, but the technical domain, install folder, and service namespace all change.
+### Version 2.1.0 — migration assistant
 
 | If you are… | What to do |
 |-------------|------------|
-| On **1.x** with a **working** setup | Use HACS repo **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)** (not this repo). Remove `ifMike/homeyHASS` from HACS custom repositories if added. See [Legacy 1.x (HACS)](#legacy-1x-hacs). Do **not** update to 2.0.0 until you can migrate. |
-| On **1.x** and ready to migrate | Follow [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) **before** updating. |
-| A **new user** | Install **2.0.1** normally — no migration needed. |
-| On **2.0.x** already | HACS → **Update** to **2.0.1** → restart Home Assistant. |
+| A **new user** | Install **2.1.0** normally via HACS. No migration steps. |
+| On **2.0.x** already | HACS → **Update** to **2.1.0** → restart. No migration steps. |
+| On **1.x** and **ready to migrate** | Follow [Migrating from 1.x](#migrating-from-1x-to-2x) **before** updating. |
+| On **1.x** and **not ready** | Use HACS repo **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy)**. Do **not** install 2.x from this repository. |
 
-Updating from 1.x to 2.0.x **without** migrating will break your integration (failed config entry, unavailable entities, broken automations).
+Updating from 1.x to 2.x **without** migrating breaks your integration (unavailable entities, failed config entry, broken `homey.*` automations).
 
-### Via HACS (2.0.0 → 2.0.1)
+### Via HACS (2.0.x → 2.1.0)
 
-1. HACS → Integrations → Homey Integration → **Update**
+1. HACS → Integrations → Homey → **Update**
 2. Restart Home Assistant
 
 No config migration required.
 
-### Via HACS (1.x → 2.0.0)
+### Via HACS (1.x → 2.1.0)
 
-Only when you are ready to migrate:
+Only when you are ready to migrate — see [Migrating from 1.x](#migrating-from-1x-to-2x):
 
-1. Read [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200) fully.
-2. HACS → Integrations → Homey Integration → **Update**
-3. Complete all migration steps (delete old config entry, remove old folder, re-add integration, fix automations).
-4. Restart Home Assistant
+1. Create a Home Assistant **backup**
+2. Install **2.1.0** (keep your existing **Homey 1.x** entry until migration completes)
+3. Restart Home Assistant
+4. **Add integration → Homey 2.x → Migrate from Homey 1.x**
+5. Complete post-migration steps (automations, delete old folder)
 
-### Via HACS (already on 2.0.x)
+### Via HACS (already on 2.0.x / 2.1.x)
 
-1. HACS → Integrations → Homey Integration → **Update**
+1. HACS → Integrations → Homey → **Update**
 2. Restart Home Assistant
 
 ### Manual
@@ -334,7 +334,7 @@ Only when you are ready to migrate:
 
 ### If devices stop working after update
 
-- If you updated from 1.x without migrating, see [Migrating from 1.x to 2.0.0](#migrating-from-1x-to-200)
+- If you updated from 1.x without migrating, see [Migrating from 1.x to 2.x](#migrating-from-1x-to-2x)
 - Reload the integration
 - Check API key permissions
 - Review the [CHANGELOG](CHANGELOG.md)
@@ -342,60 +342,100 @@ Only when you are ready to migrate:
 
 ---
 
-## Migrating from 1.x to 2.0.0
+## Migrating from 1.x to 2.x
 
-**Required for all users upgrading from version 1.x.** There is no automatic migration.
+**Applies only if you have an existing Homey 1.x integration** (domain `homey`, folder `custom_components/homey/`). **New installations skip this entirely** — add Homey via HACS and enter your host and API key.
 
-### Why
-
-The domain `homey` conflicts with another HACS integration ([RonnyWinkler/homeassistant.homey](https://github.com/RonnyWinkler/homeassistant.homey)). Version 2.0.0 uses domain `homey_hass`, which is now listed in the **official HACS default catalog**. The display name **Homey** is unchanged.
-
-### What you will lose without migration
-
-- Working config entry and all entities (unavailable)
-- Automations/scripts using `homey.trigger_flow`, `homey.enable_flow`, `homey.disable_flow`, `homey.set_device_temperature_unit`, and other `homey.*` services
-- Energy dashboard bindings if entity IDs change
+Version 2.0.0+ uses domain `homey_hass` (required for the [official HACS catalog](https://github.com/hacs/default/pull/6696)). The display name in Home Assistant is still **Homey**, but services change from `homey.*` to `homey_hass.*`.
 
 ### Before you start
 
-1. **Create a Home Assistant backup**
-2. Note your Homey **IP/hostname** and **API key** (Homey app → Settings → API Keys)
-3. Plan time to fix automations and dashboards afterward
+- [ ] Create a **Home Assistant backup**
+- [ ] Note your Homey **IP/hostname** and **API key** (Homey app → Settings → API Keys)
+- [ ] Plan time to update automations and dashboards afterward
 
-### Step-by-step migration
+### Guided migration (recommended — 2.1.0+)
 
-1. **Settings → Devices & services → Homey** (the existing 1.x entry)
-2. Open the integration menu → **Delete** the config entry. Confirm. This removes entities from the old domain.
-3. Update to **2.0.0** via HACS (or download the release and copy files manually).
-4. On your Home Assistant config directory, **delete** the old folder if it exists:
-   ```
-   custom_components/homey/
-   ```
-5. Confirm the new folder exists:
-   ```
-   custom_components/homey_hass/
-   ```
-6. **Restart Home Assistant**
-7. **Settings → Devices & services → Add Integration** → search **Homey**
-8. Enter your host and API key; complete device selection as before
-9. **Update automations and scripts** — replace every `homey.` service with `homey_hass.`:
+1. **Install 2.x alongside 1.x**
+   - HACS → Integrations → Homey → Update to **2.1.0**, **or** copy `custom_components/homey_hass/` manually
+   - Keep `custom_components/homey/` and your existing **Homey** config entry for now
+2. **Restart Home Assistant**
+3. **Settings → Devices & services → Add integration → Homey 2.x**
+   - While both 1.x and 2.x folders are installed, you may see **Homey** (1.x) and **Homey 2.x** — always pick **Homey 2.x**
+   - You should then see **Upgrade from Homey 1.x** — choose **Migrate from Homey 1.x** (not “Set up as new installation”)
+4. **Confirm migration options**
+   - ☑ **Keep my entity IDs** (recommended — preserves dashboards and automations)
+   - ☑ **Remove the old Homey 1.x integration when done** (recommended once 2.x works)
+5. **Wait for setup to finish** — you should get a **Migration complete** notification
+6. **Verify** under **Settings → Devices & services → Homey 2.x** that devices respond
+7. **Post-migration cleanup**
+   - **If** automations/scripts use `homey.*` **services** (e.g. `homey.trigger_flow`), update to `homey_hass.*` (see [service table](#service-name-changes)). Automations that only trigger on entity states need no changes when entity IDs were preserved.
+   - Delete `custom_components/homey/` from your config directory
+   - Restart Home Assistant
+   - Click **Ignore** on any **Homey (IP unknown)** card under Discovered integrations
 
-   | Old (1.x) | New (2.0.0) |
-   |-----------|-------------|
-   | `homey.trigger_flow` | `homey_hass.trigger_flow` |
-   | `homey.enable_flow` | `homey_hass.enable_flow` |
-   | `homey.disable_flow` | `homey_hass.disable_flow` |
-   | `homey.set_device_temperature_unit` | `homey_hass.set_device_temperature_unit` |
-   | `homey.rename_entities_to_titles` | `homey_hass.rename_entities_to_titles` |
-   | `homey.test_capability_report` | `homey_hass.test_capability_report` |
+**Already added 2.x manually but still have 1.x?** Open **Configure → Migrate from Homey 1.x** on your **Homey 2.x** entry.
 
-10. Check **Settings → Devices & services → Entities** for orphaned unavailable entities and remove them if needed.
-11. Update dashboards and the Energy dashboard if entity IDs changed.
+### Which integration to pick?
+
+| Name in Add integration | What it is |
+|-------------------------|------------|
+| **Homey 2.x** | Current integration (`homey_hass`) — use this |
+| **Homey** | Legacy 1.x (`homey`) — only if you are **not** migrating yet |
+
+After you delete `custom_components/homey/` and restart, only **Homey 2.x** remains in the list. The **2.x** suffix avoids confusion while both versions can coexist during migration.
+
+### What you see during setup
+
+| Your situation | What Home Assistant shows |
+|----------------|---------------------------|
+| **New install** (no 1.x folder) | **Homey 2.x** → normal connect form (host + API key). No migration screens. |
+| **1.x still configured** | **Homey 2.x** → **Upgrade from Homey 1.x** with migrate vs fresh options |
+| **Already on 2.x** | “This Homey hub is already configured” if you try to add again |
+| **After migration** | One **Homey 2.x** entry only. Migration menu options disappear. |
+
+### Why device count may differ
+
+The integration tile counts devices in Home Assistant’s registry. After migration you may see slightly fewer devices than 1.x showed if old registry entries lingered for devices deleted from Homey, or if your 1.x **device filter** excluded some devices. Use **Configure → Manage Devices** to add any missing ones.
+
+### Service name changes
+
+| Old (1.x) | New (2.x) |
+|-----------|-----------|
+| `homey.trigger_flow` | `homey_hass.trigger_flow` |
+| `homey.enable_flow` | `homey_hass.enable_flow` |
+| `homey.disable_flow` | `homey_hass.disable_flow` |
+| `homey.set_device_temperature_unit` | `homey_hass.set_device_temperature_unit` |
+| `homey.rename_entities_to_titles` | `homey_hass.rename_entities_to_titles` |
+| `homey.test_capability_report` | `homey_hass.test_capability_report` |
+
+### Manual migration (fallback)
+
+Use this if the guided assistant is unavailable:
+
+1. **Settings → Devices & services → Homey** (1.x entry) → **Delete** the config entry
+2. Install **2.x** and confirm `custom_components/homey_hass/` exists
+3. Delete `custom_components/homey/` if it still exists
+4. **Restart Home Assistant**
+5. **Add integration → Homey 2.x** — enter host and API key; select devices
+6. Update automations (service table above)
+7. Remove orphaned unavailable entities if needed
+
+### Troubleshooting migration
+
+| Problem | What to do |
+|---------|------------|
+| Two **Homey** entries in Add integration | Pick **Homey 2.x** (current). Plain **Homey** is legacy 1.x. |
+| Migration screen does not appear | Confirm Homey **1.x** is still configured **and** `custom_components/homey/` exists. Restart HA after installing 2.x. Pick **Homey 2.x**, not **Homey**. |
+| “Already configured” | Remove the duplicate Homey entry, or delete failed 2.x entry and migrate again. |
+| “Failed to set up” | Check logs (filter `homey_hass`). Reload the entry after updating to **2.1.0**. |
+| **Homey (IP unknown)** in Discovered | Normal after migration. Click **Ignore** — do not add a second entry. |
+| Entity ID conflicts in logs | Usually from overlapping 1.x and 2.x entries. Complete migration and remove 1.x. |
 
 ### After migration
 
 - Enable debug logging if needed: `custom_components.homey_hass: debug` (see [Troubleshooting](#troubleshooting))
-- Open an issue on GitHub if entities or devices are missing after re-setup
+- Open an issue on GitHub if devices are missing after re-setup
 
 ---
 

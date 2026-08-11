@@ -11,9 +11,10 @@ import aiohttp
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv, device_registry as dr, selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -30,6 +31,9 @@ from .const import (
     CONF_USE_CAPABILITY_TITLES,
     CONF_TEMPERATURE_UNIT_OVERRIDES,
     CONF_TOKEN,
+    CONF_MIGRATE_FROM_LEGACY_ENTRY_ID,
+    CONF_PRESERVE_ENTITY_IDS,
+    CONF_REMOVE_LEGACY_ENTRY,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_RECOVERY_COOLDOWN,
     DEFAULT_INVERT_LIGHT_TEMPERATURE,
@@ -39,6 +43,15 @@ from .const import (
     DOMAIN,
 )
 from .device_info import get_device_type
+from .migration import (
+    LegacyMigrationResult,
+    async_migrate_device_areas,
+    async_preserve_entity_ids,
+    async_remove_legacy_entry,
+    build_migration_success_message,
+    build_entry_data_from_legacy,
+    get_legacy_config_entries,
+)
 from .temperature import (
     TEMPERATURE_OVERRIDE_AUTO,
     TEMPERATURE_OVERRIDE_CELSIUS,
@@ -86,6 +99,73 @@ CONFIG_FLOW_ERROR_MESSAGES = {
         "4. Pro 2019 or older is not supported"
     ),
 }
+
+# Hardcoded English fallbacks for migration steps when strings.json / translations
+# are missing or menu labels fail to load in custom integrations.
+MIGRATION_FLOW_FALLBACKS: dict[str, dict[str, str]] = {
+    "migration_offer": {
+        "flow_title": "Upgrade from Homey 1.x",
+        "description": (
+            "We found your existing **Homey 1.x** integration.\n\n"
+            "**Migrate from Homey 1.x** copies your connection settings, keeps entity IDs, "
+            "and can remove the old integration automatically.\n\n"
+            "**Set up as new installation** starts fresh without importing from 1.x.\n\n"
+            "Tip: Create a Home Assistant backup before migrating."
+        ),
+        "next_step": "What would you like to do?",
+        "option_migrate": "Migrate from Homey 1.x (recommended)",
+        "option_fresh": "Set up as new installation",
+    },
+    "migrate_from_legacy": {
+        "flow_title": "Select Homey 1.x hub",
+        "description": (
+            "Multiple Homey 1.x integrations were found. "
+            "Select which one to migrate."
+        ),
+        "legacy_entry": "Homey 1.x integration",
+        "preserve_entity_ids": "Keep my entity IDs (recommended)",
+        "remove_legacy_entry": "Remove the old Homey 1.x integration when done",
+        "no_legacy_entry": "No Homey 1.x integration was found. It may already have been removed.",
+    },
+    "migrate_confirm": {
+        "flow_title": "Confirm migration",
+        "description": (
+            "Ready to migrate **{name}** ({host}).\n\n"
+            "Devices: {devices}\n\n"
+            "This creates the **Homey 2.x** integration using your existing settings."
+        ),
+        "preserve_entity_ids": (
+            "Keep my entity IDs (recommended — preserves dashboards and automations)"
+        ),
+        "remove_legacy_entry": "Remove the old Homey 1.x integration when done",
+    },
+}
+
+
+def _migration_fallback(step_id: str, key: str) -> str:
+    """Return hardcoded migration UI text."""
+    return MIGRATION_FLOW_FALLBACKS.get(step_id, {}).get(key, key)
+
+
+async def _async_abort_other_homey_hass_flows(hass: HomeAssistant, keep_flow_id: str) -> None:
+    """Abort duplicate in-progress Homey 2.x setup flows (e.g. repeated discovery)."""
+    for flow in list(hass.config_entries.flow.async_progress()):
+        if flow.get("handler") != DOMAIN:
+            continue
+        flow_id = flow.get("flow_id")
+        if not flow_id or flow_id == keep_flow_id:
+            continue
+        await hass.config_entries.flow.async_abort(flow_id)
+
+
+def _homey_hass_entry_exists(hass: HomeAssistant, unique_id: str | None) -> bool:
+    """Return True if this hub is already configured under Homey 2.x."""
+    if not unique_id:
+        return False
+    return any(
+        entry.unique_id == unique_id
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    )
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -360,11 +440,225 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize config flow state."""
+        self._legacy_entries: list[ConfigEntry] = []
+        self._selected_legacy_entry: ConfigEntry | None = None
+        self._pending_dhcp_discovery: DhcpServiceInfo | None = None
+        self._pending_zeroconf_discovery: ZeroconfServiceInfo | None = None
+
+    def _async_show_migration_form(
+        self,
+        step_id: str,
+        data_schema: vol.Schema,
+        *,
+        flow_title: str | None = None,
+        description_placeholders: dict[str, str] | None = None,
+        errors: dict[str, str] | None = None,
+    ) -> FlowResult:
+        """Show a migration form with hardcoded English fallbacks."""
+        placeholders = dict(description_placeholders or {})
+        title = flow_title or _migration_fallback(step_id, "flow_title")
+        if title:
+            placeholders.setdefault("name", title)
+        if placeholders:
+            self.context["title_placeholders"] = placeholders
+
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders=placeholders or None,
+        )
+
+    async def _async_prepare_legacy_migration(self, legacy_entry: ConfigEntry) -> None:
+        """Claim this hub for migration and drop duplicate setup flows."""
+        await _async_abort_other_homey_hass_flows(self.hass, self.flow_id)
+        if legacy_entry.unique_id:
+            await self.async_set_unique_id(legacy_entry.unique_id)
+
+    async def _async_offer_migration_if_needed(self) -> FlowResult | None:
+        """Show migration menu when Homey 1.x is still configured."""
+        if self.context.get("skip_migration_offer"):
+            return None
+        legacy_entries = get_legacy_config_entries(self.hass)
+        if not legacy_entries:
+            return None
+        self._legacy_entries = legacy_entries
+        return await self.async_step_migration_offer()
+
+    async def async_step_migration_offer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Offer one-click migration when Homey 1.x is still configured."""
+        next_step_label = _migration_fallback("migration_offer", "next_step")
+        if user_input is not None:
+            selected = user_input.get("next_step") or user_input.get(next_step_label)
+            if selected == "migrate_from_legacy":
+                await _async_abort_other_homey_hass_flows(self.hass, self.flow_id)
+                return await self.async_step_migrate_from_legacy()
+            return await self.async_step_setup_fresh()
+
+        await _async_abort_other_homey_hass_flows(self.hass, self.flow_id)
+        return self._async_show_migration_form(
+            "migration_offer",
+            vol.Schema(
+                {
+                    vol.Required(next_step_label, default="migrate_from_legacy"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value="migrate_from_legacy",
+                                    label=_migration_fallback("migration_offer", "option_migrate"),
+                                ),
+                                selector.SelectOptionDict(
+                                    value="setup_fresh",
+                                    label=_migration_fallback("migration_offer", "option_fresh"),
+                                ),
+                            ],
+                            mode=selector.SelectSelectorMode.LIST,
+                        ),
+                    ),
+                }
+            ),
+            flow_title=_migration_fallback("migration_offer", "flow_title"),
+        )
+
+    async def _async_dedupe_discovery_flow(self, unique_id: str) -> FlowResult | None:
+        """Abort duplicate discovery config flows for the same hub."""
+        await self.async_set_unique_id(unique_id)
+        self._abort_if_unique_id_configured()
+
+        for flow in self.hass.config_entries.flow.async_progress():
+            if flow.get("handler") != DOMAIN:
+                continue
+            if flow.get("flow_id") == self.flow_id:
+                continue
+            context = flow.get("context") or {}
+            if context.get("unique_id") == unique_id:
+                return self.async_abort(reason="already_in_progress")
+        return None
+
+    async def async_step_setup_fresh(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Continue with a fresh 2.x setup (skip migration offer)."""
+        self.context["skip_migration_offer"] = True
+        if self._pending_dhcp_discovery is not None:
+            discovery = self._pending_dhcp_discovery
+            self._pending_dhcp_discovery = None
+            return await self.async_step_dhcp(discovery)
+        if self._pending_zeroconf_discovery is not None:
+            discovery = self._pending_zeroconf_discovery
+            self._pending_zeroconf_discovery = None
+            return await self.async_step_zeroconf(discovery)
+        return await self.async_step_user()
+
+    async def async_step_migrate_from_legacy(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Select a legacy entry when more than one Homey 1.x hub exists."""
+        if not self._legacy_entries:
+            self._legacy_entries = get_legacy_config_entries(self.hass)
+        if not self._legacy_entries:
+            return await self.async_step_user()
+
+        if len(self._legacy_entries) == 1:
+            self._selected_legacy_entry = self._legacy_entries[0]
+            await self._async_prepare_legacy_migration(self._selected_legacy_entry)
+            return await self.async_step_migrate_confirm()
+
+        if user_input is not None:
+            legacy_entry_label = _migration_fallback("migrate_from_legacy", "legacy_entry")
+            selected_id = user_input.get("legacy_entry") or user_input.get(legacy_entry_label)
+            self._selected_legacy_entry = next(
+                (entry for entry in self._legacy_entries if entry.entry_id == selected_id),
+                None,
+            )
+            if self._selected_legacy_entry is None:
+                return await self.async_step_migrate_from_legacy()
+            await self._async_prepare_legacy_migration(self._selected_legacy_entry)
+            return await self.async_step_migrate_confirm()
+
+        options = {
+            entry.entry_id: f"{entry.title} ({entry.data.get(CONF_HOST, 'unknown host')})"
+            for entry in self._legacy_entries
+        }
+        legacy_entry_label = _migration_fallback("migrate_from_legacy", "legacy_entry")
+        return self._async_show_migration_form(
+            "migrate_from_legacy",
+            vol.Schema(
+                {
+                    vol.Required(legacy_entry_label): vol.In(options),
+                }
+            ),
+        )
+
+    async def async_step_migrate_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm and run migration from a legacy Homey 1.x config entry."""
+        legacy_entry = self._selected_legacy_entry
+        if legacy_entry is None:
+            return await self.async_step_migrate_from_legacy()
+
+        if user_input is None:
+            await self._async_prepare_legacy_migration(legacy_entry)
+            device_filter = legacy_entry.data.get(CONF_DEVICE_FILTER)
+            if device_filter is None:
+                device_summary = "All devices"
+            else:
+                device_summary = f"{len(device_filter)} selected device(s)"
+            self.context["title_placeholders"] = {
+                "name": legacy_entry.title,
+                "host": legacy_entry.data.get(CONF_HOST, ""),
+                "devices": device_summary,
+            }
+            preserve_label = _migration_fallback("migrate_confirm", "preserve_entity_ids")
+            remove_label = _migration_fallback("migrate_confirm", "remove_legacy_entry")
+            return self._async_show_migration_form(
+                "migrate_confirm",
+                vol.Schema(
+                    {
+                        vol.Optional(preserve_label, default=True): bool,
+                        vol.Optional(remove_label, default=True): bool,
+                    }
+                ),
+                flow_title=f"Confirm: {legacy_entry.title}",
+                description_placeholders=self.context["title_placeholders"],
+            )
+
+        await self._async_prepare_legacy_migration(legacy_entry)
+        if _homey_hass_entry_exists(self.hass, legacy_entry.unique_id):
+            return self.async_abort(reason="already_configured")
+
+        preserve_label = _migration_fallback("migrate_confirm", "preserve_entity_ids")
+        remove_label = _migration_fallback("migrate_confirm", "remove_legacy_entry")
+        entry_data = build_entry_data_from_legacy(legacy_entry)
+        entry_data[CONF_MIGRATE_FROM_LEGACY_ENTRY_ID] = legacy_entry.entry_id
+        entry_data[CONF_PRESERVE_ENTITY_IDS] = user_input.get("preserve_entity_ids", True)
+        if preserve_label in user_input:
+            entry_data[CONF_PRESERVE_ENTITY_IDS] = user_input.get(preserve_label, True)
+        entry_data[CONF_REMOVE_LEGACY_ENTRY] = user_input.get("remove_legacy_entry", True)
+        if remove_label in user_input:
+            entry_data[CONF_REMOVE_LEGACY_ENTRY] = user_input.get(remove_label, True)
+
+        return self.async_create_entry(
+            title=legacy_entry.title,
+            data=entry_data,
+            options=dict(legacy_entry.options),
+        )
+
     async def async_step_dhcp(
         self, discovery_info: DhcpServiceInfo
     ) -> FlowResult:
         """Handle DHCP discovery."""
+        self._pending_dhcp_discovery = discovery_info
         macaddress = dr.format_mac(discovery_info.macaddress)
+        if duplicate := await self._async_dedupe_discovery_flow(macaddress):
+            return duplicate
+        if migration_step := await self._async_offer_migration_if_needed():
+            return migration_step
 
         _log_discovery_info("DHCP", discovery_info)
 
@@ -391,7 +685,6 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
                 discovery_info.ip,
             )
 
-        await self.async_set_unique_id(macaddress)
         # DHCP gives one IP per MAC - update when router reassigns (e.g. after router change)
         host_for_update = discovery_info.ip
         if host_for_update and not host_for_update.startswith(("http://", "https://")):
@@ -430,7 +723,21 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         When Homey has multiple interfaces (e.g. Ethernet + WiFi), we try each
         address and prefer the first reachable one (IPv4 before IPv6).
         """
+        self._pending_zeroconf_discovery = discovery_info
         hostname = (discovery_info.hostname or discovery_info.host or "").rstrip(".")
+        discovery_props = getattr(discovery_info, "properties", None) or {}
+        discovery_mac = discovery_props.get("macaddress") or discovery_props.get("mac")
+        if discovery_mac:
+            discovery_unique_id = dr.format_mac(str(discovery_mac))
+        elif hostname:
+            discovery_unique_id = hostname.lower()
+        else:
+            discovery_unique_id = DOMAIN
+        if duplicate := await self._async_dedupe_discovery_flow(discovery_unique_id):
+            return duplicate
+        if migration_step := await self._async_offer_migration_if_needed():
+            return migration_step
+
         raw_addresses = discovery_info.addresses or ([discovery_info.host] if discovery_info.host else [])
         # Only use IP addresses - never .local hostnames (unstable, can resolve to wrong interface)
         addresses = _filter_ip_addresses(raw_addresses)
@@ -446,7 +753,6 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         )
 
         # Suppress discovery for unsupported models (2019 and earlier have no Local API)
-        discovery_props = getattr(discovery_info, "properties", None) or {}
         if not _is_homey_model_supported(discovery_props):
             model = discovery_props.get("model", "<missing>")
             _LOGGER.info(
@@ -527,7 +833,6 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
             else:
                 host = ""
 
-        await self.async_set_unique_id(hostname or host or DOMAIN)
         # Do NOT pass updates= - would overwrite user's configured host (e.g. Ethernet 192.168.1.x)
         # with discovery address (e.g. WiFi 192.168.3.x). User chooses host in Options.
         self._abort_if_unique_id_configured()
@@ -536,8 +841,8 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         # (manual setup uses homeyId as unique_id, so abort_if_unique_id_configured won't match)
         # Pass hostname, MAC (if in mDNS properties), and port for SHS same-IP different ports
         discovery_port = getattr(discovery_info, "port", None)
-        discovery_props = getattr(discovery_info, "properties", None) or {}
-        discovery_mac = discovery_props.get("macaddress") or discovery_props.get("mac")
+        if discovery_mac is None:
+            discovery_mac = discovery_props.get("macaddress") or discovery_props.get("mac")
         if await _async_is_host_already_configured(
             self.hass,
             host,
@@ -662,6 +967,10 @@ class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
+        if user_input is None:
+            if migration_step := await self._async_offer_migration_if_needed():
+                return migration_step
+
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -1701,14 +2010,104 @@ class HomeyOptionsFlowHandler(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
+        menu_options = {
+            "settings": "Connection & Polling",
+            "device_management": "Manage Devices",
+            "temperature_units": "Device temperature units",
+        }
+        if get_legacy_config_entries(self.hass):
+            menu_options["migrate_from_legacy"] = "Migrate from Homey 1.x"
         return self.async_show_menu(
             step_id="init",
-            menu_options={
-                "settings": "Connection & Polling",
-                "device_management": "Manage Devices",
-                "temperature_units": "Device temperature units",
-            },
+            menu_options=menu_options,
         )
+
+    async def async_step_migrate_from_legacy(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Preserve entity IDs from an existing Homey 1.x integration."""
+        legacy_entries = get_legacy_config_entries(self.hass)
+        if not legacy_entries:
+            return self.async_show_form(
+                step_id="migrate_from_legacy",
+                errors={"base": _migration_fallback("migrate_from_legacy", "no_legacy_entry")},
+                data_schema=vol.Schema({}),
+            )
+
+        if user_input is None:
+            preserve_label = _migration_fallback("migrate_from_legacy", "preserve_entity_ids")
+            remove_label = _migration_fallback("migrate_from_legacy", "remove_legacy_entry")
+            schema_fields: dict[str, Any] = {
+                vol.Optional(preserve_label, default=True): bool,
+                vol.Optional(remove_label, default=True): bool,
+            }
+            if len(legacy_entries) > 1:
+                legacy_entry_label = _migration_fallback("migrate_from_legacy", "legacy_entry")
+                schema_fields = {
+                    vol.Required(legacy_entry_label): vol.In(
+                        {
+                            entry.entry_id: f"{entry.title} ({entry.data.get(CONF_HOST, 'unknown host')})"
+                            for entry in legacy_entries
+                        }
+                    ),
+                    **schema_fields,
+                }
+            return self.async_show_form(
+                step_id="migrate_from_legacy",
+                data_schema=vol.Schema(schema_fields),
+                description_placeholders={
+                    "name": _migration_fallback("migrate_from_legacy", "flow_title"),
+                },
+            )
+
+        if len(legacy_entries) == 1:
+            legacy_entry_id = legacy_entries[0].entry_id
+        else:
+            legacy_entry_label = _migration_fallback("migrate_from_legacy", "legacy_entry")
+            legacy_entry_id = user_input.get("legacy_entry") or user_input.get(legacy_entry_label)
+        preserve_label = _migration_fallback("migrate_from_legacy", "preserve_entity_ids")
+        remove_label = _migration_fallback("migrate_from_legacy", "remove_legacy_entry")
+        preserve = user_input.get("preserve_entity_ids", True)
+        if preserve_label in user_input:
+            preserve = user_input.get(preserve_label, True)
+        remove_legacy = user_input.get("remove_legacy_entry", True)
+        if remove_label in user_input:
+            remove_legacy = user_input.get(remove_label, True)
+
+        entities_preserved = 0
+        entities_skipped = 0
+        device_areas_restored = 0
+        legacy_entry_removed = False
+
+        if preserve:
+            entities_preserved, entities_skipped = await async_preserve_entity_ids(
+                self.hass, self._entry.entry_id, legacy_entry_id
+            )
+            device_areas_restored = await async_migrate_device_areas(
+                self.hass, self._entry.entry_id, legacy_entry_id
+            )
+
+        if remove_legacy:
+            legacy_entry_removed = await async_remove_legacy_entry(
+                self.hass, legacy_entry_id
+            )
+
+        message = build_migration_success_message(
+            LegacyMigrationResult(
+                entities_preserved=entities_preserved,
+                entities_skipped=entities_skipped,
+                device_areas_restored=device_areas_restored,
+                legacy_entry_removed=legacy_entry_removed,
+                legacy_entry_id=legacy_entry_id,
+            )
+        )
+        persistent_notification.async_create(
+            self.hass,
+            message,
+            title="Homey: Migration complete",
+            notification_id=f"{DOMAIN}_migration_complete_{self._entry.entry_id}",
+        )
+        return self.async_create_entry(title="", data={})
 
     async def async_step_settings(
         self, user_input: dict[str, Any] | None = None

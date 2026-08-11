@@ -84,6 +84,8 @@ def _check_installation_conflict() -> None:
 # Run check on module load
 _check_installation_conflict()
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the Homey integration."""

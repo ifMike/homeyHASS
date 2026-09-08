@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.9] - 2026-09-08
+
+### Fixed
+- **Vacuum platform on Home Assistant 2026.9**: `VacuumEntityFeature.BATTERY` was removed in Core 2026.9 and crashed the entire vacuum platform during setup. The flag is only used when still present (older HA); battery remains available via the existing `measure_battery` sensor. Same fix as mainline [#33](https://github.com/ifMike/homeyHASS/issues/33) / v2.1.1.
+
 ## [1.2.8] - 2026-07-22
 
 Documentation release for the **legacy 1.x HACS repository** [`ifMike/homeyHASS-legacy`](https://github.com/ifMike/homeyHASS-legacy). No functional changes from 1.2.7 — use this release if you are switching HACS from the main `ifMike/homeyHASS` repository to avoid 2.x update notifications.

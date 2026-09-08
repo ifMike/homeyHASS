@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS-legacy)](https://github.com/ifMike/homeyHASS-legacy/stargazers)
 
-**Version**: 1.2.8 | **Last Updated**: 2026-07-22 | [Changelog](CHANGELOG.md)
+**Version**: 1.2.9 | **Last Updated**: 2026-09-08 | [Changelog](CHANGELOG.md)
 
 > ## Legacy 1.x repository (domain `homey`)
 >

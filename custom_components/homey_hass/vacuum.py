@@ -83,8 +83,13 @@ class HomeyVacuum(CoordinatorEntity, StateVacuumEntity):
 
         capabilities = device.get("capabilitiesObj", {})
         
-        # Determine supported features based on available capabilities
-        supported_features = VacuumEntityFeature.STATE | VacuumEntityFeature.BATTERY
+        # Determine supported features based on available capabilities.
+        # VacuumEntityFeature.BATTERY was removed in HA Core 2026.9 — battery
+        # comes from the dedicated measure_battery sensor (sensor platform).
+        supported_features = VacuumEntityFeature.STATE
+        battery_feature = getattr(VacuumEntityFeature, "BATTERY", None)
+        if battery_feature is not None:
+            supported_features |= battery_feature
         
         if "clean_full" in capabilities and capabilities.get("clean_full", {}).get("setable"):
             supported_features |= VacuumEntityFeature.TURN_ON | VacuumEntityFeature.START

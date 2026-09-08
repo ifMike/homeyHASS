@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] - 2026-09-08
+
+### Fixed
+- **Vacuum platform on Home Assistant 2026.9**: `VacuumEntityFeature.BATTERY` was removed in Core 2026.9 and crashed the entire vacuum platform during setup. The flag is only used when still present (older HA); battery remains available via the existing `measure_battery` sensor. ([#33](https://github.com/ifMike/homeyHASS/issues/33))
+
+### Changed
+- **CI**: GitHub Actions updated to Node 24–compatible versions (`actions/checkout@v5`, `actions/setup-python@v6`, `actions/cache@v6`); pre-commit runs directly instead of the deprecated action.
+- **Hassfest**: Added `CONFIG_SCHEMA` for config-entry-only setup.
+
 ## [2.1.0] - 2026-08-11
 
 ### Added

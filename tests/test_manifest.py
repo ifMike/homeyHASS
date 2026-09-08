@@ -36,4 +36,4 @@ def test_manifest_version_is_current() -> None:
         / "manifest.json"
     )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert manifest.get("version") == "1.2.8"
+    assert manifest.get("version") == "1.2.9"

@@ -100,6 +100,10 @@ CAPABILITY_TO_PLATFORM = {
     "speaker_playing": "media_player",
     "speaker_next": "media_player",
     "speaker_prev": "media_player",
+    # Google Nest (com.google.nest) thermostat
+    "nest_thermostat_mode": "climate",
+    "nest_thermostat_hvac": "climate",
+    "nest_thermostat_eco": "switch",
 }
 
 _GENERIC_SENSOR_CAPABILITIES = frozenset(

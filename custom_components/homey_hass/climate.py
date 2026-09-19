@@ -14,12 +14,63 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .climate_modes import (
+    HVAC_ACTION_CAPABILITIES,
+    extract_mode_id,
+    find_custom_mode_capability,
+    map_homey_hvac_action_id,
+    map_homey_mode_id,
+)
 from .const import DOMAIN
 from .coordinator import HomeyDataUpdateCoordinator
 from .device_info import build_entity_unique_id, get_device_info
 from .temperature import get_device_temperature_unit, resolve_temperature_unit
 
 _LOGGER = logging.getLogger(__name__)
+
+try:
+    from homeassistant.components.climate import HVACAction
+except ImportError:  # pragma: no cover - very old HA
+    HVACAction = None  # type: ignore[misc, assignment]
+
+
+def map_homey_mode_to_hvac(mode_id: str) -> HVACMode | None:
+    """Map a Homey thermostat mode id/title to an HA HVACMode."""
+    value = map_homey_mode_id(mode_id)
+    if value is None:
+        return None
+    try:
+        return HVACMode(value)
+    except ValueError:
+        # Fallback for older HA enums that may not expose every member the same way
+        mapping = {
+            "off": HVACMode.OFF,
+            "heat": HVACMode.HEAT,
+            "cool": HVACMode.COOL,
+            "auto": HVACMode.AUTO,
+            "heat_cool": HVACMode.HEAT_COOL,
+        }
+        return mapping.get(value)
+
+
+def map_homey_hvac_action(value: str):
+    """Map Nest/Homey HVAC action strings to HVACAction when available."""
+    if HVACAction is None:
+        return None
+    action_id = map_homey_hvac_action_id(value)
+    if action_id is None:
+        return None
+    mapping = {
+        "off": HVACAction.OFF,
+        "idle": HVACAction.IDLE,
+        "heating": HVACAction.HEATING,
+        "cooling": HVACAction.COOLING,
+    }
+    if hasattr(HVACAction, "DRYING"):
+        mapping["drying"] = HVACAction.DRYING
+    if hasattr(HVACAction, "FAN_ONLY"):
+        mapping["fan_only"] = HVACAction.FAN_ONLY
+    return mapping.get(action_id)
 
 
 async def async_setup_entry(
@@ -159,13 +210,8 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         self._attr_supported_features = supported_features
         hvac_modes = []
         
-        # Check for custom thermostat mode capabilities (e.g., thermofloor_mode)
-        # These are enum capabilities with mode values
-        custom_mode_cap = None
-        for cap_id in capabilities:
-            if cap_id.endswith("_mode") and cap_id != "thermostat_mode" and capabilities[cap_id].get("type") == "enum":
-                custom_mode_cap = cap_id
-                break
+        # Prefer Nest / known mode caps, then generic *_mode enums (e.g. thermofloor_mode)
+        custom_mode_cap = find_custom_mode_capability(capabilities)
         
         # Check for standard thermostat mode capabilities
         has_mode_off = "thermostat_mode_off" in capabilities
@@ -174,30 +220,18 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         has_mode_auto = "thermostat_mode_auto" in capabilities
         has_mode = "thermostat_mode" in capabilities
         
-        # Handle custom mode capabilities (e.g., thermofloor_mode)
+        # Handle custom mode capabilities (e.g., thermofloor_mode, nest_thermostat_mode)
         if custom_mode_cap:
             mode_cap_data = capabilities[custom_mode_cap]
             mode_values = mode_cap_data.get("values", [])
             # Map custom mode values to HVAC modes
-            # Example: thermofloor_mode has ["Heat", "Energy Save Heat", "Off", "Cool"]
             for mode_value in mode_values:
-                mode_id = mode_value.get("id", mode_value.get("title", mode_value)) if isinstance(mode_value, dict) else str(mode_value)
+                mode_id = extract_mode_id(mode_value)
                 if mode_id is None:
                     continue
-                mode_id_lower = str(mode_id).lower()
-                if "off" in mode_id_lower or mode_id_lower == "off":
-                    if HVACMode.OFF not in hvac_modes:
-                        hvac_modes.append(HVACMode.OFF)
-                elif "heat" in mode_id_lower or mode_id_lower == "heat":
-                    if HVACMode.HEAT not in hvac_modes:
-                        hvac_modes.append(HVACMode.HEAT)
-                elif "cool" in mode_id_lower or mode_id_lower == "cool":
-                    if HVACMode.COOL not in hvac_modes:
-                        hvac_modes.append(HVACMode.COOL)
-                elif "auto" in mode_id_lower or "energy" in mode_id_lower or "save" in mode_id_lower:
-                    # Energy Save mode maps to AUTO or HEAT_COOL
-                    if HVACMode.AUTO not in hvac_modes:
-                        hvac_modes.append(HVACMode.AUTO)
+                mapped = map_homey_mode_to_hvac(mode_id)
+                if mapped is not None and mapped not in hvac_modes:
+                    hvac_modes.append(mapped)
             # Store custom mode capability for later use
             self._custom_mode_capability = custom_mode_cap
         # If we have standard mode capabilities, use them
@@ -240,22 +274,9 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         current_mode = None
         if hasattr(self, "_custom_mode_capability") and self._custom_mode_capability:
             mode_cap_data = capabilities.get(self._custom_mode_capability, {})
-            mode_value = mode_cap_data.get("value")
-            if mode_value:
-                mode_id = mode_value.get("id", mode_value.get("title", mode_value)) if isinstance(mode_value, dict) else str(mode_value)
-                if mode_id is None:
-                    return HVACMode.HEAT_COOL
-                mode_id_lower = str(mode_id).lower()
-                if "off" in mode_id_lower or mode_id_lower == "off":
-                    current_mode = HVACMode.OFF
-                elif "heat" in mode_id_lower and "energy" in mode_id_lower:
-                    current_mode = HVACMode.AUTO  # Energy Save Heat = AUTO
-                elif "heat" in mode_id_lower:
-                    current_mode = HVACMode.HEAT
-                elif "cool" in mode_id_lower:
-                    current_mode = HVACMode.COOL
-                elif "auto" in mode_id_lower:
-                    current_mode = HVACMode.AUTO
+            mode_id = extract_mode_id(mode_cap_data.get("value"))
+            if mode_id:
+                current_mode = map_homey_mode_to_hvac(mode_id)
         elif "thermostat_mode" in capabilities:
             mode_value = capabilities.get("thermostat_mode", {}).get("value")
             if mode_value:
@@ -264,6 +285,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
                     "heat": HVACMode.HEAT,
                     "cool": HVACMode.COOL,
                     "auto": HVACMode.AUTO,
+                    "heatcool": HVACMode.HEAT_COOL,
                 }
                 current_mode = mode_mapping.get(str(mode_value).lower())
         
@@ -436,7 +458,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         device_data = self.coordinator.data.get(self._device_id, self._device)
         capabilities = device_data.get("capabilitiesObj", {})
         
-        # Check if we have a custom mode capability (e.g., thermofloor_mode)
+        # Check if we have a custom mode capability (e.g., thermofloor_mode, nest_thermostat_mode)
         if hasattr(self, "_custom_mode_capability") and self._custom_mode_capability:
             mode_cap = capabilities.get(self._custom_mode_capability, {})
             mode_values = mode_cap.get("values", [])
@@ -451,11 +473,11 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
             elif hvac_mode == HVACMode.AUTO:
                 target_modes = ["auto", "Auto", "Energy Save Heat", "Energy Save"]
             elif hvac_mode == HVACMode.HEAT_COOL:
-                target_modes = ["auto", "Auto"]
+                target_modes = ["heatcool", "HeatCool", "heat_cool", "auto", "Auto"]
             
             # Find matching mode value
             for mode_value_obj in mode_values:
-                mode_id = mode_value_obj.get("id", mode_value_obj.get("title", mode_value_obj)) if isinstance(mode_value_obj, dict) else str(mode_value_obj)
+                mode_id = extract_mode_id(mode_value_obj)
                 if mode_id is None:
                     continue
                 mode_id_str = str(mode_id)
@@ -471,7 +493,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
                 HVACMode.HEAT: "heat",
                 HVACMode.COOL: "cool",
                 HVACMode.AUTO: "auto",
-                HVACMode.HEAT_COOL: "auto",  # Fallback to auto if HEAT_COOL not supported
+                HVACMode.HEAT_COOL: "heatcool",
             }
             mode_value = mode_mapping.get(hvac_mode)
             if mode_value:
@@ -494,25 +516,14 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         device_data = self.coordinator.data.get(self._device_id, self._device)
         capabilities = device_data.get("capabilitiesObj", {})
         
-        # Check if we have a custom mode capability (e.g., thermofloor_mode)
+        # Check if we have a custom mode capability (e.g., thermofloor_mode, nest_thermostat_mode)
         if hasattr(self, "_custom_mode_capability") and self._custom_mode_capability:
             mode_cap_data = capabilities.get(self._custom_mode_capability, {})
-            mode_value = mode_cap_data.get("value")
-            if mode_value:
-                mode_id = mode_value.get("id", mode_value.get("title", mode_value)) if isinstance(mode_value, dict) else str(mode_value)
-                if mode_id is None:
-                    return HVACMode.HEAT_COOL
-                mode_id_lower = str(mode_id).lower()
-                if "off" in mode_id_lower or mode_id_lower == "off":
-                    return HVACMode.OFF
-                elif "heat" in mode_id_lower and "energy" in mode_id_lower:
-                    return HVACMode.AUTO  # Energy Save Heat = AUTO
-                elif "heat" in mode_id_lower:
-                    return HVACMode.HEAT
-                elif "cool" in mode_id_lower:
-                    return HVACMode.COOL
-                elif "auto" in mode_id_lower:
-                    return HVACMode.AUTO
+            mode_id = extract_mode_id(mode_cap_data.get("value"))
+            if mode_id:
+                mapped = map_homey_mode_to_hvac(mode_id)
+                if mapped is not None:
+                    return mapped
         
         # Check if device has thermostat_mode capability
         if "thermostat_mode" in capabilities:
@@ -523,6 +534,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
                     "heat": HVACMode.HEAT,
                     "cool": HVACMode.COOL,
                     "auto": HVACMode.AUTO,
+                    "heatcool": HVACMode.HEAT_COOL,
                 }
                 return mode_mapping.get(str(mode_value).lower(), HVACMode.HEAT_COOL)
         
@@ -532,6 +544,25 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
             return HVACMode.OFF if not is_on else HVACMode.HEAT_COOL
         
         return self._attr_hvac_mode
+
+    @property
+    def hvac_action(self):
+        """Return current HVAC action from Nest/Homey action enums when present."""
+        if HVACAction is None:
+            return None
+        device_data = self.coordinator.data.get(self._device_id, self._device)
+        capabilities = device_data.get("capabilitiesObj", {})
+        for cap_id in HVAC_ACTION_CAPABILITIES:
+            if cap_id not in capabilities:
+                continue
+            raw = capabilities.get(cap_id, {}).get("value")
+            value = extract_mode_id(raw)
+            if value is None:
+                continue
+            action = map_homey_hvac_action(value)
+            if action is not None:
+                return action
+        return None
 
     async def async_turn_on(self) -> None:
         """Turn the climate device on."""

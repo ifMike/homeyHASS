@@ -438,7 +438,7 @@ async def _async_check_homey_reachable(host: str) -> bool:
 class HomeyConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Homey."""
 
-    VERSION = 1
+    VERSION = 3
 
     def __init__(self) -> None:
         """Initialize config flow state."""

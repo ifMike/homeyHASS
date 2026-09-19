@@ -46,3 +46,9 @@ def test_dyson_fan_capabilities_are_supported() -> None:
     assert is_capability_supported("oscillate")
     assert is_capability_supported("less_air")
     assert is_capability_supported("more_air")
+
+
+def test_nest_thermostat_capabilities_are_supported() -> None:
+    assert is_capability_supported("nest_thermostat_eco")
+    assert is_capability_supported("nest_thermostat_hvac")
+    assert is_capability_supported("nest_thermostat_mode")

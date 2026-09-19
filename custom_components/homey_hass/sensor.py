@@ -31,6 +31,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator
 from .device_info import build_entity_unique_id, get_device_info
+from .state_utils import state_attributes_for_truncated, truncate_ha_state
 from .temperature import get_device_temperature_unit, resolve_temperature_unit
 
 _LOGGER = logging.getLogger(__name__)
@@ -854,6 +855,15 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
         
         return None
 
+    def _string_state_and_full(self) -> tuple[str | None, str | None]:
+        """Return truncated string state and optional full value for attributes."""
+        device_data = self.coordinator.data.get(self._device_id, self._device)
+        capabilities = device_data.get("capabilitiesObj", {})
+        value = capabilities.get(self._capability_id, {}).get("value")
+        if value is None:
+            return None, None
+        return truncate_ha_state(str(value))
+
     @property
     def native_value(self) -> float | str | None:
         """Return the state of the sensor."""
@@ -865,11 +875,12 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
             return None
 
         if self._capability_type == "string":
-            return str(value)
-        
+            state, _full = truncate_ha_state(str(value))
+            return state
+
         try:
             value_float = float(value)
-            
+
             # Check if this is a percentage sensor that might be normalized
             # measure_humidity, measure_soil_moisture, measure_moisture,
             # and measure_battery might return normalized 0-1
@@ -885,8 +896,17 @@ class HomeySensor(CoordinatorEntity, SensorEntity):
                 if cap_max <= 1.0:
                     # Normalized value (0-1), convert to percentage (0-100)
                     value_float = value_float * 100.0
-            
+
             return value_float
         except (ValueError, TypeError):
             return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose full string values when state had to be truncated for HA."""
+        if self._capability_type != "string":
+            return None
+        _state, full_value = self._string_state_and_full()
+        attrs = state_attributes_for_truncated(full_value)
+        return attrs or None
 

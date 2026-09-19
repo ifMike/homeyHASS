@@ -19,6 +19,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_entity_unique_id, get_capability_label, get_device_info
+from .state_utils import state_attributes_for_truncated, truncate_ha_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -149,15 +150,27 @@ class HomeyText(CoordinatorEntity, TextEntity):
             self._homey_id, device_id, device, zones, self._multi_homey
         )
 
-    @property
-    def native_value(self) -> str | None:
-        """Return the current text value."""
+    def _string_state_and_full(self) -> tuple[str | None, str | None]:
+        """Return truncated text state and optional full value for attributes."""
         device_data = self.coordinator.data.get(self._device_id, self._device)
         capabilities = device_data.get("capabilitiesObj", {})
         value = capabilities.get(self._capability_id, {}).get("value")
         if value is None:
-            return None
-        return str(value)
+            return None, None
+        return truncate_ha_state(str(value))
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the current text value (truncated to HA's 255-char state limit)."""
+        state, _full = self._string_state_and_full()
+        return state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose full text when the entity state had to be truncated."""
+        _state, full_value = self._string_state_and_full()
+        attrs = state_attributes_for_truncated(full_value)
+        return attrs or None
 
     async def async_set_value(self, value: str) -> None:
         """Set the text value."""
@@ -213,15 +226,27 @@ class HomeyLogicText(CoordinatorEntity, TextEntity):
             "model": "Homey",
         }
 
-    @property
-    def native_value(self) -> str | None:
-        """Return the current text value."""
+    def _string_state_and_full(self) -> tuple[str | None, str | None]:
+        """Return truncated logic text state and optional full value."""
         variables = self.coordinator.data or {}
         variable = variables.get(self._variable_id, self._variable)
         value = variable.get("value")
         if value is None:
-            return None
-        return str(value)
+            return None, None
+        return truncate_ha_state(str(value))
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the current text value (truncated to HA's 255-char state limit)."""
+        state, _full = self._string_state_and_full()
+        return state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose full logic text when the entity state had to be truncated."""
+        _state, full_value = self._string_state_and_full()
+        attrs = state_attributes_for_truncated(full_value)
+        return attrs or None
 
     async def async_set_value(self, value: str) -> None:
         """Set the logic text value."""

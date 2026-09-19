@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.2] - 2026-09-19
+
+### Fixed
+- **Long string states (#34)**: Homey string sensors/text entities that exceed Home Assistant's 255-character state limit no longer write the full value as state (which caused multi-GB `homeassistant.core` log growth). Values are truncated (SVG → `svg`); the full string is exposed as the `full_value` attribute. ([#34](https://github.com/ifMike/homeyHASS/issues/34))
+- **Multi-hub unique_id orphans (#35)**: Enabling a second Homey hub now migrates existing entity `unique_id`s to the hub-prefixed form before new entities are created. Conflicts (both old and new already present) are skipped safely with a cleanup notification. Single-hub installs are unchanged — unique_ids are never hub-prefixed unless multi-hub is active. ([#35](https://github.com/ifMike/homeyHASS/issues/35))
+- **Nest thermostat (#36)**: `nest_thermostat_mode` / `nest_thermostat_hvac` / `nest_thermostat_eco` are recognized (stops capability notifications). Climate maps `heatcool` → `HEAT_COOL`, exposes Nest HVAC action, and keeps existing select/switch entities so dashboards are not broken. ([#36](https://github.com/ifMike/homeyHASS/issues/36))
+
 ## [2.1.1] - 2026-09-08
 
 ### Fixed

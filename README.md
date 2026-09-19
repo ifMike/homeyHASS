@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 2.1.3 | **Last Updated**: 2026-09-19 | [Changelog](CHANGELOG.md)
+**Version**: 2.1.2 | **Last Updated**: 2026-09-19 | [Changelog](CHANGELOG.md)
 
 > ### New installation?
 > Search **Homey** in HACS and add **Homey 2.x**. **No migration steps apply.**

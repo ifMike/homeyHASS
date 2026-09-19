@@ -7,17 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.1.3] - 2026-09-19
-
-### Fixed
-- **Config entry migration crash on newer Home Assistant**: 2.1.2 set `entry.version` directly, which HA rejects (`AttributeError: version cannot be changed directly, use async_update_entry instead`). Migration failed, the Homey entry never loaded, and entities showed as no longer provided by `homey_hass`. Version is now updated via `async_update_entry`. Unique ID hub-prefixing remains setup-time only (multi-hub), not during this migrate hook.
-
 ## [2.1.2] - 2026-09-19
 
 ### Fixed
 - **Huge Home Assistant logs from long Homey values (#34)**: Some Homey capabilities (for example weather SVG icons and long Logic text) are longer than Home Assistant’s 255-character state limit. The integration used to pass those values straight into the entity state, so every update logged a long error and could grow logs by many gigabytes. States are now truncated for display (SVG becomes `svg`), and the full value is kept in the `full_value` attribute. ([#34](https://github.com/ifMike/homeyHASS/issues/34))
 - **Duplicate / orphaned entities after adding a second Homey hub (#35)**: Turning on multi-hub mode changed entity unique IDs (hub prefix) without migrating the entity registry, so Home Assistant created a second live entity next to an unavailable orphan. Unique IDs are now migrated when multi-hub is enabled. Single-hub installs are unchanged. If both old and new IDs already exist, remove only the **unavailable** orphans. ([#35](https://github.com/ifMike/homeyHASS/issues/35))
 - **Google Nest thermostat capabilities reported as unknown (#36)**: Nest’s `nest_thermostat_mode`, `nest_thermostat_hvac`, and `nest_thermostat_eco` triggered “new capability” notifications and were not mapped cleanly. They are now recognized; climate handles Nest mode (including `heatcool`) and HVAC action; eco stays a switch. ([#36](https://github.com/ifMike/homeyHASS/issues/36))
+- **Config entry migration crash on newer Home Assistant**: An early 2.1.2 build set `entry.version` directly, which HA rejects (`AttributeError: version cannot be changed directly, use async_update_entry instead`). Migration failed, the Homey entry never loaded, and entities showed as no longer provided by `homey_hass`. Version is now updated via `async_update_entry`. Unique ID hub-prefixing remains setup-time only (multi-hub), not during this migrate hook.
 
 ### Thanks
 - Thanks to [@Bigkun-HU](https://github.com/Bigkun-HU) for reporting the long-state log flood and multi-hub unique ID orphans ([#34](https://github.com/ifMike/homeyHASS/issues/34), [#35](https://github.com/ifMike/homeyHASS/issues/35)), and to [@mca-rolando](https://github.com/mca-rolando) for reporting the Nest thermostat capabilities ([#36](https://github.com/ifMike/homeyHASS/issues/36)).

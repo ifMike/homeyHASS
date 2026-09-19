@@ -212,6 +212,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         
         # Prefer Nest / known mode caps, then generic *_mode enums (e.g. thermofloor_mode)
         custom_mode_cap = find_custom_mode_capability(capabilities)
+        self._custom_mode_capability: str | None = None
         
         # Check for standard thermostat mode capabilities
         has_mode_off = "thermostat_mode_off" in capabilities
@@ -247,13 +248,11 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
             # If we have multiple modes but not AUTO, add HEAT_COOL as fallback
             if not has_mode_auto and (has_mode_heat and has_mode_cool):
                 hvac_modes.append(HVACMode.HEAT_COOL)
-            self._custom_mode_capability = None
         else:
             # Fallback to original behavior: HEAT_COOL mode
             hvac_modes = [HVACMode.HEAT_COOL]
             if "onoff" in capabilities:
                 hvac_modes.append(HVACMode.OFF)
-            self._custom_mode_capability = None
         
         # Ensure we have at least one mode
         if not hvac_modes:

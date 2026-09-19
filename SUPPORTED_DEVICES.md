@@ -111,6 +111,8 @@ If a light exposes `lightScenes.light`, it can also be controlled through the li
 
 **Generic Sensor Support**: Any `measure_*` or `meter_*` capability is automatically created as a sensor, even if not explicitly listed.
 
+**Long string sensors**: Read-only string capabilities longer than 255 characters are truncated in the entity state (SVG markup → `svg`); the full value is in the `full_value` attribute.
+
 
 ---
 
@@ -170,11 +172,16 @@ Some older Fibaro Z-Wave roller shutters (and similar drivers) expose position t
 - `thermostat_mode` - HVAC mode control (off, heat, cool, auto)
 - `thermostat_mode_off`, `thermostat_mode_heat`, `thermostat_mode_cool`, `thermostat_mode_auto` - Mode capabilities
 - `thermofloor_mode` - Custom thermostat mode (e.g., ThermoFloor: Heat, Energy Save Heat, Off, Cool)
-- `*_mode` - Any enum capability ending with `_mode` is automatically detected
+- `nest_thermostat_mode` - Google Nest HVAC mode (off, heat, cool, heatcool → HEAT_COOL)
+- `nest_thermostat_hvac` - Google Nest HVAC action (off, heating, cooling) — shown as climate `hvac_action`
+- `nest_thermostat_eco` - Google Nest Eco mode (settable boolean → switch)
+- `*_mode` - Any enum capability ending with `_mode` is automatically detected (Nest mode is preferred when present)
 
 **Supported HVAC Modes**: OFF, HEAT, COOL, AUTO, HEAT_COOL (detected from available capabilities)
 
-**Custom Thermostat Support**: Custom mode values map to standard HVAC modes (Off, Heat, Cool, Energy Save Heat/Auto).
+**Custom Thermostat Support**: Custom mode values map to standard HVAC modes (Off, Heat, Cool, HeatCool, Energy Save Heat/Auto).
+
+**Google Nest** (`com.google.nest`): Thermostats with `target_temperature` plus the Nest capabilities above create a climate entity with correct mode and action mapping. Eco remains a switch.
 
 **Turn On/Off**: If the device has a settable `onoff` capability, it is used. Otherwise, `turn_on` sets the first non-OFF mode and `turn_off` sets OFF.
 
@@ -269,6 +276,8 @@ Any capability with `values` or `options` (enum type) is automatically created a
 - Settable string capabilities without predefined options
 - Requires "Expose string capabilities as editable text inputs" enabled in integration options
 - Read-only string capabilities appear as sensors by default (can be disabled)
+
+**Long values**: Home Assistant limits entity state to 255 characters. Longer Homey strings (for example SVG icons or long Logic text) are truncated in the state (SVG → `svg`); the full value is available as the `full_value` attribute.
 
 
 ---

@@ -313,11 +313,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await _async_enable_multi_homey(hass, skip_reload_entry_id=entry.entry_id)
         else:
             # Repair unique_ids if an older version enabled multi-hub without migrating them.
-            # Idempotent: already-prefixed IDs and conflicts are skipped.
+            # Use the resolved API Homey ID (not host fallback) so prefixes match entity creation.
             for existing in entries:
-                existing_homey_id = existing.data.get("homey_id") or existing.data.get(
-                    CONF_HOST
+                existing_data = hass.data.get(DOMAIN, {}).get(existing.entry_id, {})
+                existing_homey_id = (
+                    existing_data.get("homey_id")
+                    or existing.data.get("homey_id")
+                    or existing.data.get(CONF_HOST)
                 )
+                # For the entry currently setting up, prefer the freshly resolved ID.
+                if existing.entry_id == entry.entry_id:
+                    existing_homey_id = homey_id
                 if existing_homey_id:
                     await _async_migrate_entity_unique_ids_for_multi_homey(
                         hass, existing, existing_homey_id
@@ -815,20 +821,23 @@ async def _async_migrate_entity_unique_ids_for_multi_homey(
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Migrate old device identifiers and entity unique IDs."""
+    """Migrate old device identifiers.
+
+    Unique ID hub-prefixing is intentionally NOT done here. On modern Home
+    Assistant, ``entry.version`` cannot be assigned directly, and this hook
+    also runs before we have a confirmed API Homey ID. Unique IDs are migrated
+    during setup when multi-hub mode is actually active (see
+    ``_async_enable_multi_homey`` / setup repair path).
+    """
     if entry.version >= 3:
         return True
 
-    # Skip device ID migration when multi-homey isn't enabled, but still migrate entity unique_ids.
-    multi_homey_enabled = bool(
-        entry.data.get("multi_homey_enabled")
-        or hass.data.get(DOMAIN, {}).get("multi_homey_enabled")
-        or len(list(hass.config_entries.async_entries(DOMAIN))) > 1
-    )
+    # Device ID migration only when multi-homey is actively in use (2+ hubs).
+    multi_homey_enabled = len(list(hass.config_entries.async_entries(DOMAIN))) > 1
     homey_id = entry.data.get("homey_id") or entry.data.get(CONF_HOST)
     if not homey_id:
         _LOGGER.debug("Skipping migration: missing homey_id")
-        entry.version = 3
+        hass.config_entries.async_update_entry(entry, version=3)
         return True
 
     _LOGGER.info("Migrating Homey config entry from version %s", entry.version)
@@ -837,11 +846,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entity_registry = er.async_get(hass)
 
     # Update entry data with resolved homey_id for future lookups
-    if entry.data.get("homey_id") != homey_id:
-        hass.config_entries.async_update_entry(
-            entry,
-            data={**entry.data, "homey_id": homey_id},
-        )
+    new_data = dict(entry.data)
+    if new_data.get("homey_id") != homey_id:
+        new_data["homey_id"] = homey_id
 
     # Reattach entities for this entry to a Homey-scoped device entry
     if multi_homey_enabled:
@@ -910,18 +917,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if not has_entities:
                 device_registry.async_remove_device(device_entry.id)
 
-    # Unique IDs must only be hub-prefixed in multi-hub mode. Single-hub installs
-    # keep unprefixed IDs so we never orphan working entities on version bump.
-    updated = 0
-    if multi_homey_enabled:
-        updated, _conflicts = await _async_migrate_entity_unique_ids_for_multi_homey(
-            hass, entry, homey_id
-        )
-
-    entry.version = 3
-    _LOGGER.info(
-        "Homey config entry migration complete (updated %d unique IDs)", updated
-    )
+    # Home Assistant 2024.11+ rejects direct assignment to entry.version.
+    hass.config_entries.async_update_entry(entry, data=new_data, version=3)
+    _LOGGER.info("Homey config entry migration complete")
     return True
 
 

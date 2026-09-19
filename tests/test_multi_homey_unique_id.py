@@ -74,3 +74,12 @@ def test_config_flow_version_is_3() -> None:
     flow_path = _ROOT / "custom_components" / "homey_hass" / "config_flow.py"
     text = flow_path.read_text(encoding="utf-8")
     assert "VERSION = 3" in text
+
+
+def test_migrate_entry_uses_async_update_entry_for_version() -> None:
+    """HA rejects direct entry.version assignment — migrate must use async_update_entry."""
+    init_path = _ROOT / "custom_components" / "homey_hass" / "__init__.py"
+    text = init_path.read_text(encoding="utf-8")
+    assert "entry.version = " not in text
+    assert "async_update_entry(entry, data=new_data, version=3)" in text
+    assert "async_update_entry(entry, version=3)" in text

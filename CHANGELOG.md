@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.3] - 2026-09-19
+
+### Fixed
+- **Config entry migration crash on newer Home Assistant**: 2.1.2 set `entry.version` directly, which HA rejects (`AttributeError: version cannot be changed directly, use async_update_entry instead`). Migration failed, the Homey entry never loaded, and entities showed as no longer provided by `homey_hass`. Version is now updated via `async_update_entry`. Unique ID hub-prefixing remains setup-time only (multi-hub), not during this migrate hook.
+
 ## [2.1.2] - 2026-09-19
 
 ### Fixed

@@ -19,7 +19,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_entity_unique_id, get_capability_label, get_device_info
-from .state_utils import state_attributes_for_truncated, truncate_ha_state
+from .state_utils import ATTR_FULL_VALUE, state_attributes_for_truncated, truncate_ha_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,6 +114,8 @@ async def async_setup_entry(
 class HomeyText(CoordinatorEntity, TextEntity):
     """Representation of a Homey text entity."""
 
+    _unrecorded_attributes = frozenset({ATTR_FULL_VALUE})
+
     def __init__(
         self,
         coordinator: HomeyDataUpdateCoordinator,
@@ -194,6 +196,8 @@ class HomeyText(CoordinatorEntity, TextEntity):
 
 class HomeyLogicText(CoordinatorEntity, TextEntity):
     """Representation of a Homey logic string variable."""
+
+    _unrecorded_attributes = frozenset({ATTR_FULL_VALUE})
 
     def __init__(
         self,

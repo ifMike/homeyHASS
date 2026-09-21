@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.3] - 2026-09-21
+
+### Fixed
+- **Ignored Homey discoveries counted as extra hubs (#35)**: If you dismissed another Homey with “Ignore” in Home Assistant, that ignored discovery was still counted as a second hub. Single-hub installs could wrongly get hub-prefixed unique IDs. Only real configured hubs are counted now. If multi-hub mode was already applied, it stays sticky so deleting ignored entries does not recreate every entity.
+- **Large `full_value` attributes bloating the recorder (#34)**: Truncated long strings still expose the full value as `full_value` for templates, but that attribute is no longer written into history (SVGs and long Logic text stay out of the database).
+- **Noisy unique_id conflict warnings on every reload (#35)**: When old and new unique IDs both already exist, the skip summary is logged once per config entry per session instead of a WARNING for every entity on each restart/reload.
+
+### Thanks
+- Thanks again to [@Bigkun-HU](https://github.com/Bigkun-HU) for verifying 2.1.2 and spotting the ignored-discovery hub count, recorder, and log-noise follow-ups ([#34](https://github.com/ifMike/homeyHASS/issues/34), [#35](https://github.com/ifMike/homeyHASS/issues/35)).
+
 ## [2.1.2] - 2026-09-19
 
 ### Fixed

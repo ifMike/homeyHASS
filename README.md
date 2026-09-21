@@ -4,7 +4,7 @@
 [![GitHub issues](https://img.shields.io/github/issues/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/issues)
 [![GitHub stars](https://img.shields.io/github/stars/ifMike/homeyHASS)](https://github.com/ifMike/homeyHASS/stargazers)
 
-**Version**: 2.1.2 | **Last Updated**: 2026-09-19 | [Changelog](CHANGELOG.md)
+**Version**: 2.1.3 | **Last Updated**: 2026-09-21 | [Changelog](CHANGELOG.md)
 
 > ### New installation?
 > Search **Homey** in HACS and add **Homey 2.x**. **No migration steps apply.**
@@ -583,7 +583,7 @@ This section explains common setup errors and how to resolve them. Use your brow
 
 - Reload the integration
 - Restart Home Assistant
-- **Multi-hub (2+ Homey hubs):** From **2.1.2**, entity unique IDs are migrated when a second hub is added. If you already have unavailable orphans from an earlier version, go to **Settings → Devices & Services → Entities**, filter **Unavailable**, and remove only the unavailable Homey duplicates — keep the live ones. Prefer the entity that has a real state over `unavailable`.
+- **Multi-hub (2+ Homey hubs):** From **2.1.2**, entity unique IDs are migrated when a second real hub is added. Ignored discoveries do not count as hubs (**2.1.3**). If you already have orphans from an earlier version, go to **Settings → Devices & Services → Entities**, filter **Disabled** or **Unavailable**, and remove only those Homey duplicates — keep the live ones. Prefer the entity that has a real state over `unavailable`.
 
 ### Device Changes Not Syncing
 

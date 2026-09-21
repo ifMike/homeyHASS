@@ -31,7 +31,7 @@ from .const import (
 )
 from .coordinator import HomeyDataUpdateCoordinator
 from .device_info import build_entity_unique_id, get_device_info
-from .state_utils import state_attributes_for_truncated, truncate_ha_state
+from .state_utils import ATTR_FULL_VALUE, state_attributes_for_truncated, truncate_ha_state
 from .temperature import get_device_temperature_unit, resolve_temperature_unit
 
 _LOGGER = logging.getLogger(__name__)
@@ -523,6 +523,10 @@ async def async_setup_entry(
 
 class HomeySensor(CoordinatorEntity, SensorEntity):
     """Representation of a Homey sensor."""
+
+    # Large truncated values (e.g. SVG) must stay available to templates via
+    # full_value, but must not be written into the recorder history DB.
+    _unrecorded_attributes = frozenset({ATTR_FULL_VALUE})
 
     def __init__(
         self,

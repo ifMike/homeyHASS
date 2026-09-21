@@ -35,8 +35,29 @@ from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_device_identifier, extract_device_id, extract_unique_id_primary
 from .migration import async_run_legacy_migration, build_migration_success_message, get_legacy_config_entries
 from .homey_api import HomeyAPI
+from .multi_homey import should_use_multi_homey
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _active_homey_entries(hass: HomeAssistant) -> list[ConfigEntry]:
+    """Return real Homey config entries, excluding ignored discoveries.
+
+    HA's ``async_entries`` defaults to ``include_ignore=True``. Counting ignored
+    entries as hubs falsely enables multi-hub unique_id prefixing.
+    """
+    return hass.config_entries.async_entries(DOMAIN, include_ignore=False)
+
+
+def _resolve_multi_homey(hass: HomeAssistant) -> bool:
+    """Return whether this install should use hub-prefixed unique_ids."""
+    active = _active_homey_entries(hass)
+    sticky = any(entry.data.get("multi_homey_enabled") for entry in active)
+    sticky = sticky or bool(hass.data.get(DOMAIN, {}).get("multi_homey_enabled"))
+    return should_use_multi_homey(
+        active_hub_count=len(active),
+        sticky_enabled=sticky,
+    )
 
 # Module loaded
 
@@ -264,7 +285,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Abort setup if another entry points to the same Homey - prevents duplicate entities
-    for other_entry in hass.config_entries.async_entries(DOMAIN):
+    for other_entry in _active_homey_entries(hass):
         if other_entry.entry_id == entry.entry_id:
             continue
         other_homey_id = other_entry.data.get("homey_id") or other_entry.data.get(CONF_HOST)
@@ -301,9 +322,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await api.disconnect()
             return False
 
-    # Enable multi-homey mode only when more than one hub is configured
-    entries = hass.config_entries.async_entries(DOMAIN)
-    multi_hub = len(entries) > 1
+    # Enable multi-homey when 2+ *real* hubs are configured, or when already sticky.
+    # Ignored discovery entries must not count (HA includes them by default).
+    entries = _active_homey_entries(hass)
+    multi_hub = _resolve_multi_homey(hass)
 
     if multi_hub:
         hass.data[DOMAIN]["multi_homey_enabled"] = True
@@ -505,14 +527,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if entry_id:
                 target_entry = hass.config_entries.async_get_entry(entry_id)
             else:
-                for candidate in hass.config_entries.async_entries(DOMAIN):
+                active_entries = _active_homey_entries(hass)
+                for candidate in active_entries:
                     overrides = candidate.options.get(
                         CONF_TEMPERATURE_UNIT_OVERRIDES, {}
                     )
                     if device_id in overrides or target_entry is None:
                         target_entry = candidate
-                if len(hass.config_entries.async_entries(DOMAIN)) == 1:
-                    target_entry = hass.config_entries.async_entries(DOMAIN)[0]
+                if len(active_entries) == 1:
+                    target_entry = active_entries[0]
 
             if not target_entry:
                 _LOGGER.error(
@@ -777,6 +800,7 @@ async def _async_migrate_entity_unique_ids_for_multi_homey(
     entity_registry = er.async_get(hass)
     updated = 0
     conflicts = 0
+    conflict_entity_ids: list[str] = []
     scoped_prefix = f"{UNIQUE_ID_PREFIX}{homey_id}_"
 
     for entity_entry in list(entity_registry.entities.values()):
@@ -797,9 +821,9 @@ async def _async_migrate_entity_unique_ids_for_multi_homey(
         )
         if conflict:
             conflicts += 1
-            _LOGGER.warning(
-                "Skipping unique_id migration for %s due to conflict with existing %s. "
-                "Remove the unavailable orphaned entity if both appear in the registry.",
+            conflict_entity_ids.append(entity_entry.entity_id)
+            _LOGGER.debug(
+                "Skipping unique_id migration for %s due to conflict with existing %s",
                 entity_entry.entity_id,
                 new_unique_id,
             )
@@ -809,6 +833,25 @@ async def _async_migrate_entity_unique_ids_for_multi_homey(
             entity_entry.entity_id, new_unique_id=new_unique_id
         )
         updated += 1
+
+    if conflicts:
+        # Log once per config entry per HA session — repair re-runs on every setup.
+        hass.data.setdefault(DOMAIN, {})
+        logged = hass.data[DOMAIN].setdefault("unique_id_conflict_logged", set())
+        if entry.entry_id not in logged:
+            logged.add(entry.entry_id)
+            sample = ", ".join(conflict_entity_ids[:5])
+            more = f" (+{conflicts - 5} more)" if conflicts > 5 else ""
+            _LOGGER.warning(
+                "Multi-hub unique_id migration skipped %d conflicting entities for "
+                "entry %s (already have both old and new IDs). Remove disabled/"
+                "unavailable orphans in Settings → Devices & Services → Entities. "
+                "Examples: %s%s",
+                conflicts,
+                entry.entry_id,
+                sample,
+                more,
+            )
 
     if updated or conflicts:
         _LOGGER.info(
@@ -832,8 +875,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.version >= 3:
         return True
 
-    # Device ID migration only when multi-homey is actively in use (2+ hubs).
-    multi_homey_enabled = len(list(hass.config_entries.async_entries(DOMAIN))) > 1
+    # Device ID migration only when multi-homey is actively in use (2+ real hubs
+    # or sticky multi_homey_enabled). Ignored discoveries must not count.
+    multi_homey_enabled = _resolve_multi_homey(hass)
     homey_id = entry.data.get("homey_id") or entry.data.get(CONF_HOST)
     if not homey_id:
         _LOGGER.debug("Skipping migration: missing homey_id")
@@ -1031,7 +1075,7 @@ async def _async_enable_multi_homey(
 
     total_updated = 0
     total_conflicts = 0
-    for entry in hass.config_entries.async_entries(DOMAIN):
+    for entry in _active_homey_entries(hass):
         if entry.domain != DOMAIN:
             continue
         homey_id = entry.data.get("homey_id") or entry.data.get(CONF_HOST)
@@ -1067,7 +1111,7 @@ async def _async_enable_multi_homey(
     # Skip the entry currently being set up (it will continue with multi_homey=True).
     from homeassistant.config_entries import ConfigEntryState
 
-    for entry in hass.config_entries.async_entries(DOMAIN):
+    for entry in _active_homey_entries(hass):
         if entry.entry_id == skip_reload_entry_id:
             continue
         if entry.state == ConfigEntryState.LOADED:
@@ -1077,8 +1121,8 @@ async def _async_enable_multi_homey(
         done_message = (
             f"Multi-hub migration completed (updated {total_updated} unique IDs). "
             f"{total_conflicts} entities already had both old and new unique IDs — "
-            "remove the unavailable orphans in Settings → Devices & Services → "
-            "Entities (filter Unavailable). Do not delete the live ones."
+            "remove the disabled/unavailable orphans in Settings → Devices & Services → "
+            "Entities (filter Disabled or Unavailable). Do not delete the live ones."
         )
     else:
         done_message = (

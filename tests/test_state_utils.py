@@ -37,6 +37,10 @@ def test_exact_limit_unchanged() -> None:
     assert full is None
 
 
+def test_attr_full_value_constant() -> None:
+    assert ATTR_FULL_VALUE == "full_value"
+
+
 def test_long_string_truncated_with_full_attribute() -> None:
     value = "a" * (HA_STATE_MAX_LENGTH + 50)
     state, full = truncate_ha_state(value)

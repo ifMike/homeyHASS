@@ -2,11 +2,26 @@
 
 ---
 
-## Version 2.1.3
+## Version 2.1.4
 
 **Current stable release** for the `homey_hass` integration (folder `custom_components/homey_hass/`, services `homey_hass.*`).
 
 **Available in the official HACS default catalog** — search for **Homey** in HACS → Integrations (listed as **Homey 2.x** while legacy 1.x may still be installed on some systems).
+
+---
+
+## What's New in 2.1.4
+
+### Hotfix
+Some sensors could show as **unavailable** after updating from 2.1.2 to 2.1.3. Aqara temperature and humidity sensors were a common example. Going back to 2.1.2 made them work again.
+
+**Why this happened:** 2.1.3 changed how we decide whether you have one Homey or more than one. On some systems the sensors already had an internal hub id. 2.1.3 stopped using that id, so Home Assistant thought the sensors were new and left the old ones unavailable.
+
+**What this update does:** it keeps the ids your sensors already have. Update to **2.1.4** and restart Home Assistant. You do not need to delete the sensors. If 2.1.3 also created extra copies, keep the ones that show a real value and remove only the unavailable copies.
+
+### Thanks
+
+Thanks to [@njguyuk891](https://github.com/njguyuk891) for reporting this ([#37](https://github.com/ifMike/homeyHASS/issues/37)).
 
 ---
 
@@ -56,7 +71,7 @@ Install normally: **Add integration → Homey 2.x** and enter your Homey host an
 
 Use the **guided migration assistant** (added in 2.1.0). Full guide: [Migrating from 1.x to 2.x](https://github.com/ifMike/homeyHASS#migrating-from-1x-to-2x).
 
-**Quick summary:** backup → install **2.1.3** alongside 1.x → **Add integration → Homey 2.x** → **Migrate from Homey 1.x** → delete `custom_components/homey/` when done.
+**Quick summary:** backup → install **2.1.4** alongside 1.x → **Add integration → Homey 2.x** → **Migrate from Homey 1.x** → delete `custom_components/homey/` when done.
 
 ---
 
@@ -68,13 +83,15 @@ Use HACS repository **[`ifMike/homeyHASS-legacy`](https://github.com/ifMike/home
 
 ## Upgrading from 2.1.x / 2.0.x
 
-1. Update via HACS or download **v2.1.3** from [Releases](https://github.com/ifMike/homeyHASS/releases)
+1. Update via HACS or download **v2.1.4** from [Releases](https://github.com/ifMike/homeyHASS/releases)
 2. Restart Home Assistant
 
 No migration steps required unless you are still on 1.x.
 
+**If sensors went unavailable after 2.1.3:** update to **2.1.4** and restart. Keep the sensors that show a real value. Remove only extra unavailable copies, if 2.1.3 created any.
+
 **Multi-hub / cleanup:** Prefer keeping **live** entities. Delete only **disabled** or **unavailable** Homey orphans. Do not delete live entities.
 
-**If Homey entities all became unavailable after an early 2.1.2 install:** update to **2.1.3** and restart — do not delete entities.
+**If Homey entities all became unavailable after an early 2.1.2 install:** update to **2.1.4** and restart — do not delete entities.
 
 For the full changelog, see [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).

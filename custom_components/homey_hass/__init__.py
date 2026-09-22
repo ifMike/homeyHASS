@@ -35,7 +35,7 @@ from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_device_identifier, extract_device_id, extract_unique_id_primary
 from .migration import async_run_legacy_migration, build_migration_success_message, get_legacy_config_entries
 from .homey_api import HomeyAPI
-from .multi_homey import should_use_multi_homey
+from .multi_homey import migrated_unique_id, registry_uses_hub_prefix, should_use_multi_homey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,14 +49,58 @@ def _active_homey_entries(hass: HomeAssistant) -> list[ConfigEntry]:
     return hass.config_entries.async_entries(DOMAIN, include_ignore=False)
 
 
-def _resolve_multi_homey(hass: HomeAssistant) -> bool:
-    """Return whether this install should use hub-prefixed unique_ids."""
+def _known_homey_ids(hass: HomeAssistant, extra: list[str] | None = None) -> list[str]:
+    """Hub id strings that may already appear in unique_id prefixes."""
+    ids: list[str] = list(extra or [])
+    for entry in _active_homey_entries(hass):
+        stored = entry.data.get("homey_id")
+        host = entry.data.get(CONF_HOST)
+        if stored:
+            ids.append(stored)
+        if host:
+            ids.append(host)
+    return ids
+
+
+def _registry_prefix_state(
+    hass: HomeAssistant, extra_homey_ids: list[str] | None = None
+) -> bool | None:
+    """Read whether current Homey entities are already hub-prefixed."""
+    entity_registry = er.async_get(hass)
+    device_registry = dr.async_get(hass)
+    unique_ids = [
+        entity.unique_id
+        for entity in entity_registry.entities.values()
+        if entity.unique_id and entity.unique_id.startswith(UNIQUE_ID_PREFIX)
+    ]
+    device_values = [
+        identifier[1]
+        for device in device_registry.devices.values()
+        for identifier in device.identifiers
+        if identifier[0] == DOMAIN and len(identifier) > 1
+    ]
+    return registry_uses_hub_prefix(
+        unique_ids,
+        homey_ids=_known_homey_ids(hass, extra_homey_ids),
+        device_identifier_values=device_values,
+    )
+
+
+def _resolve_multi_homey(
+    hass: HomeAssistant, extra_homey_ids: list[str] | None = None
+) -> tuple[bool, bool | None]:
+    """Return (use_prefix, registry_state) for hub-prefixed unique_ids."""
     active = _active_homey_entries(hass)
     sticky = any(entry.data.get("multi_homey_enabled") for entry in active)
     sticky = sticky or bool(hass.data.get(DOMAIN, {}).get("multi_homey_enabled"))
-    return should_use_multi_homey(
-        active_hub_count=len(active),
-        sticky_enabled=sticky,
+    registry_state = _registry_prefix_state(hass, extra_homey_ids)
+    return (
+        should_use_multi_homey(
+            active_hub_count=len(active),
+            sticky_enabled=sticky,
+            registry_uses_hub_prefix=registry_state,
+        ),
+        registry_state,
     )
 
 # Module loaded
@@ -322,16 +366,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await api.disconnect()
             return False
 
-    # Enable multi-homey when 2+ *real* hubs are configured, or when already sticky.
-    # Ignored discovery entries must not count (HA includes them by default).
+    # Prefix unique_ids only for 2+ real hubs, or when existing entities are
+    # already prefixed. Never flip a working install to the other scheme.
     entries = _active_homey_entries(hass)
-    multi_hub = _resolve_multi_homey(hass)
+    multi_hub, registry_prefixed = _resolve_multi_homey(hass, [homey_id] if homey_id else None)
+    preserve_existing_prefixes = registry_prefixed is True and len(entries) <= 1
 
     if multi_hub:
         hass.data[DOMAIN]["multi_homey_enabled"] = True
-        # Only run full migration + notifications if not already done (persisted in entry data)
         migration_already_done = any(e.data.get("multi_homey_enabled") for e in entries)
-        if not migration_already_done:
+        if preserve_existing_prefixes:
+            # 2.1.2 may have prefixed IDs because ignored discoveries counted as
+            # hubs, without storing multi_homey_enabled. Keep those IDs. Do not
+            # rewrite them and do not announce a new multi-hub migration.
+            if not entry.data.get("multi_homey_enabled"):
+                hass.config_entries.async_update_entry(
+                    entry,
+                    data={**entry.data, "homey_id": homey_id, "multi_homey_enabled": True},
+                )
+        elif not migration_already_done:
             await _async_enable_multi_homey(hass, skip_reload_entry_id=entry.entry_id)
         else:
             # Repair unique_ids if an older version enabled multi-hub without migrating them.
@@ -801,21 +854,14 @@ async def _async_migrate_entity_unique_ids_for_multi_homey(
     updated = 0
     conflicts = 0
     conflict_entity_ids: list[str] = []
-    scoped_prefix = f"{UNIQUE_ID_PREFIX}{homey_id}_"
 
     for entity_entry in list(entity_registry.entities.values()):
         config_entry_id = getattr(entity_entry, "config_entry_id", None)
         if config_entry_id != entry.entry_id:
             continue
-        if not entity_entry.unique_id:
+        new_unique_id = migrated_unique_id(entity_entry.unique_id or "", homey_id)
+        if new_unique_id is None:
             continue
-        if not entity_entry.unique_id.startswith(UNIQUE_ID_PREFIX):
-            continue
-        if entity_entry.unique_id.startswith(scoped_prefix):
-            continue
-
-        suffix = entity_entry.unique_id[len(UNIQUE_ID_PREFIX) :]
-        new_unique_id = f"{scoped_prefix}{suffix}"
         conflict = any(
             ent.unique_id == new_unique_id for ent in entity_registry.entities.values()
         )
@@ -875,9 +921,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.version >= 3:
         return True
 
-    # Device ID migration only when multi-homey is actively in use (2+ real hubs
-    # or sticky multi_homey_enabled). Ignored discoveries must not count.
-    multi_homey_enabled = _resolve_multi_homey(hass)
+    # Device ID migration only when multi-homey is actively in use.
+    # Ignored discoveries must not count; existing unique_ids must not flip.
+    multi_homey_enabled, _registry_state = _resolve_multi_homey(hass)
     homey_id = entry.data.get("homey_id") or entry.data.get(CONF_HOST)
     if not homey_id:
         _LOGGER.debug("Skipping migration: missing homey_id")

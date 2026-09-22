@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.4] - 2026-09-22
+
+### Hotfix
+- **Sensors unavailable after updating from 2.1.2 to 2.1.3 (#37)**: On some single-Homey systems, 2.1.3 stopped using the hub id that was already stored on entities. Home Assistant then treated those sensors as new, and the existing ones (for example Aqara temperature and humidity) showed as unavailable. Going back to 2.1.2 brought them back, because that version still used the same ids. This release keeps the ids you already have, so those sensors stay the same after a restart. If 2.1.3 created extra copies, keep the ones that show a real value and remove only the unavailable copies. ([#37](https://github.com/ifMike/homeyHASS/issues/37))
+
+### Thanks
+- Thanks to [@njguyuk891](https://github.com/njguyuk891) for reporting that sensors went unavailable after the 2.1.3 update and came back on 2.1.2 ([#37](https://github.com/ifMike/homeyHASS/issues/37)).
+
 ## [2.1.3] - 2026-09-21
 
 ### Fixed

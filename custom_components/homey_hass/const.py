@@ -1,6 +1,8 @@
 """Constants for the Homey integration."""
 from __future__ import annotations
 
+from typing import Any
+
 DOMAIN = "homey_hass"
 UNIQUE_ID_PREFIX = "homey_hass_"
 
@@ -95,6 +97,8 @@ CAPABILITY_TO_PLATFORM = {
     "less_air": "button",
     "more_air": "button",
     "locked": "lock",
+    # Aqara / Matter smart locks (e.g. U200 Lite): Normal vs no remote lock/unlock
+    "lock_mode": "select",
     "volume_set": "media_player",
     "volume_mute": "media_player",
     "speaker_playing": "media_player",
@@ -123,7 +127,31 @@ def capability_base(cap_id: str) -> str:
     return cap_id.split(".")[0] if "." in cap_id else cap_id
 
 
-def is_capability_supported(cap_id: str) -> bool:
+def is_generic_enum_select_capability(
+    cap_id: str, cap_data: dict[str, Any] | None
+) -> bool:
+    """Return True when select.py already creates a select for this capability.
+
+    Matches the generic enum path in ``select.py`` so we do not open GitHub
+    issues for modes that are already exposed. Does not change entity creation.
+    """
+    if not cap_data:
+        return False
+    if capability_base(cap_id) == "windowcoverings_state" or cap_id == "windowcoverings_state":
+        return False
+    capability_lower = cap_id.lower()
+    if any(keyword in capability_lower for keyword in ("migrate", "reset", "identify")):
+        return False
+    if cap_data.get("type") not in ("enum", "string"):
+        return False
+    if not (cap_data.get("values") or cap_data.get("options")):
+        return False
+    return True
+
+
+def is_capability_supported(
+    cap_id: str, cap_data: dict[str, Any] | None = None
+) -> bool:
     """Return True when the integration already handles this capability."""
     base = capability_base(cap_id)
     if base in CAPABILITY_TO_PLATFORM:
@@ -137,6 +165,9 @@ def is_capability_supported(cap_id: str) -> bool:
         return True
     capability_lower = cap_id.lower()
     if any(keyword in capability_lower for keyword in ("migrate", "reset", "identify")):
+        return True
+    # Enum modes already become select entities (e.g. lock_mode before it was mapped).
+    if is_generic_enum_select_capability(cap_id, cap_data):
         return True
     return False
 

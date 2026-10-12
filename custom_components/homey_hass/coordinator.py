@@ -334,7 +334,21 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
             return
 
         self._known_capabilities.update(new_caps)
-        unknown_caps = {cap_id for cap_id in new_caps if not is_capability_supported(cap_id)}
+
+        def _cap_data(cap_id: str) -> dict[str, Any] | None:
+            for device in devices.values():
+                caps = device.get("capabilitiesObj") or {}
+                if cap_id in caps:
+                    return caps[cap_id]
+            return None
+
+        # Pass capability payloads so generic enums (already select entities)
+        # are not reported as unknown.
+        unknown_caps = {
+            cap_id
+            for cap_id in new_caps
+            if not is_capability_supported(cap_id, _cap_data(cap_id))
+        }
         if not unknown_caps:
             return
 

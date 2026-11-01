@@ -9,6 +9,18 @@ PREFERRED_MODE_CAPABILITIES = ("nest_thermostat_mode",)
 # Read-only HVAC action enums owned by the climate entity.
 HVAC_ACTION_CAPABILITIES = ("nest_thermostat_hvac",)
 
+# Enum caps that end in ``_mode`` but must NEVER become HVAC mode control.
+# Matter ACs often expose fan_mode / swing_mode alongside thermostat_mode;
+# treating them as custom HVAC modes steals heat/cool control (#40).
+NON_HVAC_MODE_CAPABILITIES = frozenset(
+    {
+        "fan_mode",
+        "swing_mode",
+        "horizontal_swing_mode",
+        "vertical_swing_mode",
+    }
+)
+
 # String values matching homeassistant.components.climate.HVACMode
 HVAC_OFF = "off"
 HVAC_HEAT = "heat"
@@ -90,16 +102,24 @@ def map_homey_hvac_action_id(value: str) -> str | None:
 
 
 def find_custom_mode_capability(capabilities: dict[str, Any]) -> str | None:
-    """Return the best enum mode capability id for climate control."""
+    """Return the best enum mode capability id for climate HVAC control.
+
+    Skips ``thermostat_mode`` (handled explicitly by the climate entity) and
+    non-HVAC enums such as ``fan_mode`` / ``swing_mode``.
+    """
     for preferred in PREFERRED_MODE_CAPABILITIES:
         cap = capabilities.get(preferred)
         if cap and cap.get("type") == "enum":
             return preferred
     for cap_id, cap_data in capabilities.items():
-        if (
-            cap_id.endswith("_mode")
-            and cap_id != "thermostat_mode"
-            and cap_data.get("type") == "enum"
-        ):
+        if not cap_id.endswith("_mode"):
+            continue
+        if cap_id == "thermostat_mode" or cap_id in NON_HVAC_MODE_CAPABILITIES:
+            continue
+        # Defensive: any fan_/swing_ *mode must not own HVAC.
+        base = cap_id.split(".", 1)[0]
+        if base.startswith(("fan_", "swing_")) or base in NON_HVAC_MODE_CAPABILITIES:
+            continue
+        if cap_data.get("type") == "enum":
             return cap_id
     return None

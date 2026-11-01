@@ -61,6 +61,64 @@ def test_prefer_nest_mode_capability() -> None:
     assert find_custom_mode_capability(caps) == "nest_thermostat_mode"
 
 
+def test_fan_and_swing_mode_do_not_steal_hvac_control() -> None:
+    """Matter AC accessories expose fan_mode/swing_mode with thermostat_mode (#40)."""
+    caps = {
+        "fan_mode": {
+            "type": "enum",
+            "values": [
+                {"id": "off"},
+                {"id": "low"},
+                {"id": "medium"},
+                {"id": "high"},
+                {"id": "auto"},
+            ],
+        },
+        "swing_mode": {
+            "type": "enum",
+            "values": [
+                {"id": "off"},
+                {"id": "vertical"},
+                {"id": "horizontal"},
+                {"id": "vertical_horizontal"},
+            ],
+        },
+        "thermostat_mode": {
+            "type": "enum",
+            "values": [
+                {"id": "off"},
+                {"id": "auto"},
+                {"id": "cool"},
+                {"id": "heat"},
+            ],
+        },
+    }
+    # thermostat_mode is handled by climate explicitly; custom finder must not
+    # return fan_mode/swing_mode (which would break heat/cool).
+    assert find_custom_mode_capability(caps) is None
+
+
+def test_thermofloor_mode_still_found_when_fan_mode_present() -> None:
+    caps = {
+        "fan_mode": {"type": "enum", "values": [{"id": "auto"}]},
+        "thermofloor_mode": {"type": "enum", "values": [{"id": "Heat"}]},
+    }
+    assert find_custom_mode_capability(caps) == "thermofloor_mode"
+
+
+def test_matter_climate_capabilities_are_mapped() -> None:
+    const_spec = importlib.util.spec_from_file_location("const_ac", _CONST_PATH)
+    assert const_spec and const_spec.loader
+    const_mod = importlib.util.module_from_spec(const_spec)
+    const_spec.loader.exec_module(const_mod)
+    assert const_mod.CAPABILITY_TO_PLATFORM["thermostat_mode"] == "climate"
+    assert const_mod.CAPABILITY_TO_PLATFORM["fan_mode"] == "select"
+    assert const_mod.CAPABILITY_TO_PLATFORM["swing_mode"] == "select"
+    assert const_mod.is_capability_supported("thermostat_mode")
+    assert const_mod.is_capability_supported("fan_mode")
+    assert const_mod.is_capability_supported("swing_mode")
+
+
 def test_nest_capabilities_are_supported() -> None:
     const_spec = importlib.util.spec_from_file_location("const_nest", _CONST_PATH)
     assert const_spec and const_spec.loader

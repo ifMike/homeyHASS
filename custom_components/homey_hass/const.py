@@ -108,6 +108,10 @@ CAPABILITY_TO_PLATFORM = {
     "nest_thermostat_mode": "climate",
     "nest_thermostat_hvac": "climate",
     "nest_thermostat_eco": "switch",
+    # Homey / Matter climate (airconditioning accessories, etc.)
+    "thermostat_mode": "climate",
+    "fan_mode": "select",
+    "swing_mode": "select",
 }
 
 _GENERIC_SENSOR_CAPABILITIES = frozenset(

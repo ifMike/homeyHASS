@@ -33,6 +33,10 @@ try:
 except ImportError:  # pragma: no cover - very old HA
     HVACAction = None  # type: ignore[misc, assignment]
 
+# HA 2026.11 renamed climate temperature properties to native_*.
+# Keep the old names on older cores so we do not break 2026.10 installs.
+_USE_NATIVE_CLIMATE_TEMP = hasattr(ClimateEntity, "native_current_temperature")
+
 
 def map_homey_mode_to_hvac(mode_id: str) -> HVACMode | None:
     """Map a Homey thermostat mode id/title to an HA HVACMode."""
@@ -173,7 +177,10 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
             self._homey_temperature_unit = resolve_temperature_unit(
                 target_temp_cap, measure_temp_cap
             )
-        self._attr_temperature_unit = self._homey_temperature_unit
+        if _USE_NATIVE_CLIMATE_TEMP:
+            self._attr_native_temperature_unit = self._homey_temperature_unit
+        else:
+            self._attr_temperature_unit = self._homey_temperature_unit
         supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
         
         # Add humidity support if available
@@ -298,7 +305,7 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
         else:
             self._attr_hvac_mode = hvac_modes[0] if hvac_modes else HVACMode.HEAT_COOL
 
-        # Min/max/step use Homey's native unit (same as temperature_unit above).
+        # Min/max/step stay in Homey's native unit (same as native_temperature_unit).
         if "min" in target_temp_cap:
             self._attr_min_temp = target_temp_cap["min"]
         else:
@@ -322,21 +329,43 @@ class HomeyClimate(CoordinatorEntity, ClimateEntity):
             self._homey_id, device_id, device, zones, self._multi_homey
         )
 
-    @property
-    def current_temperature(self) -> float | None:
-        """Return the current temperature."""
+    def _current_temperature(self) -> float | None:
+        """Read current temperature from Homey (device native unit)."""
         device_data = self.coordinator.data.get(self._device_id, self._device)
         capabilities = device_data.get("capabilitiesObj", {})
         temp = capabilities.get("measure_temperature", {}).get("value")
         return float(temp) if temp is not None else None
 
-    @property
-    def target_temperature(self) -> float | None:
-        """Return the target temperature."""
+    def _target_temperature(self) -> float | None:
+        """Read target temperature from Homey (device native unit)."""
         device_data = self.coordinator.data.get(self._device_id, self._device)
         capabilities = device_data.get("capabilitiesObj", {})
         temp = capabilities.get("target_temperature", {}).get("value")
         return float(temp) if temp is not None else None
+
+    if _USE_NATIVE_CLIMATE_TEMP:
+
+        @property
+        def native_current_temperature(self) -> float | None:
+            """Return the current temperature in the device native unit."""
+            return self._current_temperature()
+
+        @property
+        def native_target_temperature(self) -> float | None:
+            """Return the target temperature in the device native unit."""
+            return self._target_temperature()
+
+    else:
+
+        @property
+        def current_temperature(self) -> float | None:
+            """Return the current temperature on Home Assistant before 2026.11."""
+            return self._current_temperature()
+
+        @property
+        def target_temperature(self) -> float | None:
+            """Return the target temperature on Home Assistant before 2026.11."""
+            return self._target_temperature()
 
     @property
     def current_humidity(self) -> int | None:

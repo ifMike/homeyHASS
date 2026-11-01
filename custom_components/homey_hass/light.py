@@ -13,7 +13,7 @@ from homeassistant.components.light import (
     LightEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 import homeassistant.util.color as color_util
@@ -312,6 +312,18 @@ class HomeyLight(CoordinatorEntity, LightEntity):
         elif not self.coordinator.data:
             # Coordinator doesn't have data yet, request a refresh
             await self.coordinator.async_request_refresh()
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt in to in-place entity_id renames (Home Assistant 2026.11+).
+
+        Without this, custom entities that implement async_added_to_hass are still
+        removed and re-added when the entity_id changes. We do not key anything on
+        entity_id, so the default parent behavior is enough.
+        """
+        parent = getattr(super(), "async_entity_id_changed", None)
+        if parent is not None:
+            parent(old_entity_id)
 
     @property
     def is_on(self) -> bool:

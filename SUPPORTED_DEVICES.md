@@ -191,7 +191,7 @@ Some older Fibaro Z-Wave roller shutters (and similar drivers) expose position t
 - `nest_thermostat_mode` - Google Nest HVAC mode (off, heat, cool, heatcool → HEAT_COOL); preferred over other `*_mode` enums when present
 - `nest_thermostat_hvac` - Google Nest HVAC action (off, heating, cooling, …) → climate `hvac_action`
 - `nest_thermostat_eco` - Google Nest Eco mode → **switch** (not HVAC mode)
-- `*_mode` - Other enum capabilities ending with `_mode` (except `thermostat_mode`) can drive climate modes
+- `*_mode` - Other enum capabilities ending with `_mode` can drive climate modes, except `thermostat_mode`, `fan_mode`, and `swing_mode` (`fan_mode` / `swing_mode` stay select / climate fan–swing, not HVAC mode)
 - Settable `onoff` or settable `*_onoff` - Used for climate turn on/off when available (`thermofloor_onoff` is read-only and is **not** used for control)
 
 **Supported HVAC Modes**: OFF, HEAT, COOL, AUTO, HEAT_COOL (from mapped Homey values)
@@ -223,6 +223,7 @@ Devicegroups with Homey class `fan` and `onoff` also create a fan entity even if
 
 **Capabilities**
 - `locked` - Lock state and control
+- `lock_mode` - Lock mode enum (for example Matter / Aqara U200) → **select** entity
 
 Homey class `lock` maps to lock when capabilities allow.
 
@@ -284,10 +285,12 @@ Disabled flows are skipped. Requires Homey API flow permissions.
 
 **Explicit / common examples**
 - `operating_program` - Heat pump operating program
+- `lock_mode` - Matter / Aqara lock mode
+- `fan_mode`, `swing_mode` - Matter AC fan and swing (not used as HVAC mode)
 - `suction_power`, `clean_mode`, `mop_route`, `scrub_intensity`, `active_map` - Vacuum enums
 - `measure_price_level` / `measure_price_info_level` / `price_level` - When exposed as Homey enums
 
-**Climate mode overlap**: Mode enums used by climate (`nest_thermostat_mode`, `thermofloor_mode`, `thermostat_mode`, other `*_mode`) are controlled via the climate entity. A parallel select may also appear for the same enum. Prefer the climate entity for HVAC control.
+**Climate mode overlap**: Mode enums used by climate (`nest_thermostat_mode`, `thermofloor_mode`, `thermostat_mode`, other HVAC `*_mode`) are controlled via the climate entity. A parallel select may also appear for the same enum. Prefer the climate entity for HVAC control. `fan_mode` and `swing_mode` are excluded from HVAC discovery.
 
 `windowcoverings_state` is handled by the cover platform, not select.
 

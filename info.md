@@ -1,15 +1,3 @@
-# Homey Integration for Home Assistant
-
----
-
-## Version 2.1.5
-
-**Current stable release** for the `homey_hass` integration (folder `custom_components/homey_hass/`, services `homey_hass.*`).
-
-**Available in the official HACS default catalog** — search for **Homey** in HACS → Integrations (listed as **Homey 2.x** while legacy 1.x may still be installed on some systems).
-
----
-
 ## What's New in 2.1.5
 
 ### Fixed
@@ -35,9 +23,6 @@ Unchanged. Homey API key with **Local API** access — typically:
 
 ---
 
-## Update
+Update via HACS (or [Releases](https://github.com/ifMike/homeyHASS/releases)), then restart Home Assistant.
 
-1. Update via HACS (or download **v2.1.5** from [Releases](https://github.com/ifMike/homeyHASS/releases))
-2. Restart Home Assistant
-
-Full history of all releases: [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).
+Full history: [CHANGELOG](https://github.com/ifMike/homeyHASS/blob/main/CHANGELOG.md).

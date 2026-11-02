@@ -14,6 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.components import persistent_notification
 from homeassistant.helpers import selector
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import UpdateFailed
 import voluptuous as vol
 
@@ -31,6 +32,7 @@ from .const import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_RECOVERY_COOLDOWN,
 )
+from .capability_tracking import STORAGE_VERSION, storage_key
 from .coordinator import HomeyDataUpdateCoordinator, HomeyLogicUpdateCoordinator
 from .device_info import build_device_identifier, extract_device_id, extract_unique_id_primary
 from .migration import async_run_legacy_migration, build_migration_success_message, get_legacy_config_entries
@@ -1195,3 +1197,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove the persisted capability baseline of a deleted config entry."""
+    await Store(hass, STORAGE_VERSION, storage_key(DOMAIN, entry.entry_id)).async_remove()

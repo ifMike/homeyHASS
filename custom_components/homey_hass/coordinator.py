@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -24,6 +25,7 @@ from .const import (
     capability_base,
     is_capability_supported,
 )
+from .capability_tracking import STORAGE_VERSION, KnownCapabilityTracker, storage_key
 from .device_info import build_device_identifier, extract_device_id, split_device_identifier
 from .homey_api import HomeyAPI
 
@@ -104,7 +106,15 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
         self._fallback_poll_interval: int = (
             update_interval.seconds if update_interval else 10
         )
-        self._known_capabilities: set[str] | None = None
+        # Seen capabilities survive restarts, so a capability is reported once,
+        # not again after every Home Assistant restart or integration reload.
+        self._capability_tracker = KnownCapabilityTracker()
+        self._capabilities_restored = False
+        self._capabilities_store: Store | None = (
+            Store(hass, STORAGE_VERSION, storage_key(DOMAIN, config_entry.entry_id))
+            if config_entry is not None
+            else None
+        )
         
         # Conditional batching: only batch when multiple updates arrive rapidly
         # Single updates process immediately for instant UI response
@@ -220,6 +230,8 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
                     return self.data or {}
             
             # Detect newly seen capabilities and notify with a report link
+            if not self._capabilities_restored:
+                await self._async_restore_known_capabilities()
             self._detect_new_capabilities(devices)
 
             # Update device registry for name/room changes
@@ -324,16 +336,13 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
             caps_by_device[device_id] = cap_ids
             current_caps.update(cap_ids)
 
-        # Initialize baseline on first run to avoid noisy initial notification
-        if self._known_capabilities is None:
-            self._known_capabilities = current_caps
-            return
-
-        new_caps = current_caps - self._known_capabilities
+        # First run ever: the current set becomes the baseline (no notification).
+        had_baseline = self._capability_tracker.has_baseline
+        new_caps = self._capability_tracker.update(current_caps)
+        if new_caps or not had_baseline:
+            self._schedule_save_known_capabilities()
         if not new_caps:
             return
-
-        self._known_capabilities.update(new_caps)
 
         def _cap_data(cap_id: str) -> dict[str, Any] | None:
             for device in devices.values():
@@ -353,6 +362,24 @@ class HomeyDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]
             return
 
         self._create_capability_notification(unknown_caps, devices, caps_by_device)
+
+    async def _async_restore_known_capabilities(self) -> None:
+        """Load the persisted capability baseline once, before the first check."""
+        self._capabilities_restored = True
+        if self._capabilities_store is None:
+            return
+        try:
+            data = await self._capabilities_store.async_load()
+        except Exception as err:  # noqa: BLE001 - a broken store must not block polling
+            _LOGGER.debug("Could not load known capabilities: %s", err)
+            return
+        self._capability_tracker.restore(data)
+
+    def _schedule_save_known_capabilities(self) -> None:
+        if self._capabilities_store is None:
+            return
+        snapshot = self._capability_tracker.as_storage()
+        self._capabilities_store.async_delay_save(lambda: snapshot, 10)
 
     def _create_capability_notification(
         self,

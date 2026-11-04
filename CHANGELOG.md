@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.6] - 2026-11-04
+
+### Fixed
+- **Repeated “New Homey capabilities detected” after every restart (#41)**: The set of already-seen capabilities was only kept in memory. After a Home Assistant restart or integration reload, the first poll rebuilt that baseline, so a capability that appeared a bit later in the same session was reported again — even if you had dismissed the notice before. The baseline is now stored per config entry and restored before the first check, so each capability is reported once. ([#41](https://github.com/ifMike/homeyHASS/pull/41))
+
+### Thanks
+- Thanks to [@KevlarD-67](https://github.com/KevlarD-67) for the fix and for reporting the repeated notification behaviour ([#41](https://github.com/ifMike/homeyHASS/pull/41)).
+
 ## [2.1.5] - 2026-11-01
 
 ### Fixed
